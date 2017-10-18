@@ -25,6 +25,7 @@ impl<R: Read> Lexer<R> {
                         b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                         b'0'...b'9' => self.parse_number(),
                         b'/' => self.parse_slash(),
+                        b' ' | b'\n' | b'\r' => { let _ = self.next(); },
                         _ => self.parse_other(),
                     }
                 },
