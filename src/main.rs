@@ -24,6 +24,7 @@ impl<R: Read> Lexer<R> {
                     match ch {
                         b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                         b'0'...b'9' => self.parse_number(),
+                        b'/' => self.parse_slash(),
                         _ => self.parse_other(),
                     }
                 },
@@ -66,6 +67,33 @@ impl<R: Read> Lexer<R> {
         println!("got other character: `{}'", self.next().unwrap().unwrap() as char);
     }
 
+    fn parse_slash(&mut self) {
+        let _ = self.next(); // eat current ch
+        let ch = self.peek();
+        match ch {
+            Ok(Some(c)) => {
+                match c {
+                    b'*' => {},
+                    b'/' => self.parse_line_comment(),
+                    _ => {},
+                }
+            },
+            _ => {},
+        }
+    }
+
+    fn parse_line_comment(&mut self) {
+        let mut buf = "/".to_owned();
+        while let Ok(Some(ch)) = self.next() {
+            if ch == b'\n' {
+                println!("line comment: {}", buf);
+                return;
+            }
+
+            buf.push(ch as char);
+        }
+    }
+
     fn next(&mut self) -> io::Result<Option<u8>> {
         match self.ch.take() {
             Some(ch) => Ok(Some(ch)),
@@ -97,7 +125,7 @@ impl<R: Read> Lexer<R> {
 }
 
 fn main() {
-    let source = "if (11 + 22 == 33) then aa1a else bbb".to_owned();
+    let source = "if (11 + 22 == 33) then 2/1//aaa\n else bbb".to_owned();
 
     let mut lexer = Lexer::new(source.as_bytes());
     lexer.parse();
