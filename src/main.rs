@@ -1,4 +1,8 @@
 
+mod token;
+
+use token::Token;
+
 use std::io;
 use std::io::{Bytes, Read};
 
