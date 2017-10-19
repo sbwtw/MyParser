@@ -46,7 +46,13 @@ impl<R: Read> Lexer<R> {
             }
         }
 
-        println!("string: {}", buf);
+        const KEY_WORDS: &'static [&'static str] = &[ "if", "else" ];
+
+        if KEY_WORDS.contains(&buf.as_str()) {
+            println!("key words: {}", buf);
+        } else {
+            println!("string: {}", buf);
+        }
     }
 
     fn parse_number(&mut self) {
