@@ -51,9 +51,10 @@ impl<R: Read> Lexer<R> {
         }
 
         const KEY_WORDS: &'static [&'static str] = &[ "if", "else" ];
+        let buf = &buf.as_str();
 
-        if KEY_WORDS.contains(&buf.as_str()) {
-            println!("key words: {}", buf);
+        if KEY_WORDS.contains(buf) {
+            println!("{}", Token::key_word(buf));
         } else {
             println!("string: {}", buf);
         }
@@ -97,7 +98,8 @@ impl<R: Read> Lexer<R> {
         let mut buf = "/".to_owned();
         while let Ok(Some(ch)) = self.next() {
             if ch == b'\n' {
-                println!("line comment: {}", buf);
+                let c = Token::Comment(buf);
+                println!("{}", c);
                 return;
             }
 
