@@ -1,7 +1,7 @@
 
 mod token;
 
-use token::Token;
+use token::*;
 
 use std::io;
 use std::io::{Bytes, Read};
@@ -50,10 +50,9 @@ impl<R: Read> Lexer<R> {
             }
         }
 
-        const KEY_WORDS: &'static [&'static str] = &[ "if", "else" ];
         let buf = &buf.as_str();
 
-        if KEY_WORDS.contains(buf) {
+        if is_keywords(buf) {
             println!("{}", Token::key_word(buf));
         } else {
             println!("string: {}", buf);

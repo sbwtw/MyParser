@@ -10,6 +10,10 @@ pub enum KeyWords
     ELSE,
 }
 
+pub fn is_keywords(s: &str) -> bool {
+    Token::key_word_index(s).is_some()
+}
+
 pub enum Token
 {
     Comment(String),
@@ -23,10 +27,15 @@ impl Token {
 
     pub fn key_word(k: &str) -> Token {
         const KEY_TOKEN: &'static [KeyWords] = &[ KeyWords::IF, KeyWords::ELSE ];
-        const KEY_WORDS: &'static [&'static str] = &[ "if", "else" ];
-        let index = KEY_WORDS.iter().position(|&x| x == k).unwrap();
+        let index = Token::key_word_index(k).unwrap();
 
         Token::KeyWord(KEY_TOKEN[index].clone())
+    }
+
+    fn key_word_index(s: &str) -> Option<usize> {
+        const KEY_WORDS: &'static [&'static str] = &[ "if", "else" ];
+
+        KEY_WORDS.iter().position(|&x| x == s)
     }
 }
 
