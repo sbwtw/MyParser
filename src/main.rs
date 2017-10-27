@@ -84,7 +84,7 @@ impl<R: Read> Lexer<R> {
         match ch {
             Ok(Some(c)) => {
                 match c {
-                    b'*' => {},
+                    b'*' => self.parse_block_comment(),
                     b'/' => self.parse_line_comment(),
                     _ => {},
                 }
@@ -92,6 +92,8 @@ impl<R: Read> Lexer<R> {
             _ => {},
         }
     }
+
+    fn parse_block_comment(&mut self) {}
 
     fn parse_line_comment(&mut self) {
         let mut buf = "/".to_owned();

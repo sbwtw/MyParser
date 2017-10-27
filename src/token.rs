@@ -10,6 +10,13 @@ pub enum KeyWords
     ELSE,
 }
 
+#[derive(Clone, Debug)]
+pub enum Operators
+{
+    ADD,
+    DIVISION,
+}
+
 pub fn is_keywords(s: &str) -> bool {
     Token::key_word_index(s).is_some()
 }
@@ -18,6 +25,7 @@ pub enum Token
 {
     Comment(String),
     KeyWord(KeyWords),
+    Operator(Operators),
 }
 
 impl Token {
@@ -44,6 +52,7 @@ impl Display for Token {
         match self {
             &Token::Comment(ref s) => write!(f, "comment: {}", s),
             &Token::KeyWord(ref k) => write!(f, "keywords: {:?}", k),
+            &Token::Operator(ref o) => write!(f, "operators: {:?}", o),
         }
     }
 }
