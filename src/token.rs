@@ -21,6 +21,7 @@ pub fn is_keywords(s: &str) -> bool {
     Token::key_word_index(s).is_some()
 }
 
+#[derive(Debug)]
 pub enum Token
 {
     Comment(String),

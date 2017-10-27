@@ -25,13 +25,15 @@ impl<R: Read> Lexer<R> {
         loop {
             match self.peek() {
                 Ok(Some(ch)) => {
-                    match ch {
+                    let r = match ch {
                         b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                         b'0'...b'9' => self.parse_number(),
                         b'/' => self.parse_slash(),
-                        b' ' | b'\n' | b'\r' => { let _ = self.next(); },
+                        b' ' | b'\n' | b'\r' => { let _ = self.next(); Ok(None) },
                         _ => self.parse_other(),
-                    }
+                    };
+
+                    println!("{:?}", r);
                 },
                 Err(e) => println!("{:?}", e),
                 _ => break,
@@ -39,7 +41,7 @@ impl<R: Read> Lexer<R> {
         }
     }
 
-    fn parse_string(&mut self) {
+    fn parse_string(&mut self) -> io::Result<Option<Token>> {
         let mut buf = String::new();
         while let Ok(Some(ch)) = self.peek() {
             if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' {
@@ -57,9 +59,11 @@ impl<R: Read> Lexer<R> {
         } else {
             println!("string: {}", buf);
         }
+
+        Ok(None)
     }
 
-    fn parse_number(&mut self) {
+    fn parse_number(&mut self) -> io::Result<Option<Token>> {
         let mut buf = String::new();
 
         while let Ok(Some(ch)) = self.peek() {
@@ -72,13 +76,17 @@ impl<R: Read> Lexer<R> {
         }
 
         println!("number: {}", buf);
+
+        Ok(None)
     }
 
-    fn parse_other(&mut self) {
+    fn parse_other(&mut self) -> io::Result<Option<Token>> {
         println!("got other character: `{}'", self.next().unwrap().unwrap() as char);
+
+        Ok(None)
     }
 
-    fn parse_slash(&mut self) {
+    fn parse_slash(&mut self) -> io::Result<Option<Token>> {
         let _ = self.next(); // eat current ch
         let ch = self.peek();
         match ch {
@@ -91,6 +99,8 @@ impl<R: Read> Lexer<R> {
             },
             _ => {},
         }
+
+        Ok(None)
     }
 
     fn parse_block_comment(&mut self) {}
