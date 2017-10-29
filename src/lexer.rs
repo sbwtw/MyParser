@@ -6,6 +6,8 @@ use std::io;
 use std::io::{Bytes, Read};
 use std::iter::Iterator;
 
+type LexerResult = io::Result<Option<Token>>;
+
 pub struct Lexer<R> {
     ch: Option<u8>,
     iter: Bytes<R>,
@@ -30,7 +32,7 @@ impl<R: Read> Lexer<R> {
         }
     }
 
-    pub fn parse(&mut self) -> io::Result<Option<Token>> {
+    fn parse(&mut self) -> LexerResult {
         match self.peek() {
             Ok(Some(ch)) => {
                 match ch {
@@ -49,7 +51,7 @@ impl<R: Read> Lexer<R> {
         }
     }
 
-    fn parse_string(&mut self) -> io::Result<Option<Token>> {
+    fn parse_string(&mut self) -> LexerResult {
         let mut buf = String::new();
         while let Ok(Some(ch)) = self.peek() {
             if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' {
@@ -69,7 +71,7 @@ impl<R: Read> Lexer<R> {
         }
     }
 
-    fn parse_number(&mut self) -> io::Result<Option<Token>> {
+    fn parse_number(&mut self) -> LexerResult {
         let mut buf = String::new();
 
         while let Ok(Some(ch)) = self.peek() {
@@ -84,40 +86,42 @@ impl<R: Read> Lexer<R> {
         Ok(Some(Token::Number(buf)))
     }
 
-    fn parse_other(&mut self) -> io::Result<Option<Token>> {
+    fn parse_other(&mut self) -> LexerResult {
         let ch = self.next().unwrap().unwrap() as char;
 
         Ok(Some(Token::comment(&ch.to_string())))
     }
 
-    fn parse_slash(&mut self) -> io::Result<Option<Token>> {
-        let _ = self.next(); // eat current ch
-        let ch = self.peek();
+    fn parse_slash(&mut self) -> LexerResult {
+        let _ = self.next()?; // eat current ch
+        let ch = self.peek()?;
         match ch {
-            Ok(Some(c)) => match c {
+            Some(c) => match c {
                 b'*' => self.parse_block_comment(),
                 b'/' => self.parse_line_comment(),
-                _ => {}
+                _ => Ok(Some(Token::Operator(Operators::DIVISION))),
             },
-            _ => {}
+            None => return Ok(None),
         }
+    }
 
+    fn parse_block_comment(&mut self) -> LexerResult {
         Ok(None)
     }
 
-    fn parse_block_comment(&mut self) {}
-
-    fn parse_line_comment(&mut self) {
+    fn parse_line_comment(&mut self) -> LexerResult {
         let mut buf = "/".to_owned();
         while let Ok(Some(ch)) = self.next() {
             if ch == b'\n' {
                 let c = Token::Comment(buf);
                 println!("{}", c);
-                return;
+                return Ok(None);
             }
 
             buf.push(ch as char);
         }
+
+        Ok(None)
     }
 
     fn next(&mut self) -> io::Result<Option<u8>> {
