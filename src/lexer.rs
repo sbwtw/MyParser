@@ -33,8 +33,8 @@ impl<R: Read> Lexer<R> {
     }
 
     fn parse(&mut self) -> LexerResult {
-        match self.peek() {
-            Ok(Some(ch)) => match ch {
+        match self.peek()? {
+            Some(ch) => match ch {
                 b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                 b'0'...b'9' => self.parse_number(),
                 b'/' => self.parse_slash(),
@@ -44,14 +44,13 @@ impl<R: Read> Lexer<R> {
                 }
                 _ => self.parse_other(),
             },
-            Ok(None) => Ok(None),
-            Err(e) => panic!("{:?}", e),
+            None => Ok(None),
         }
     }
 
     fn parse_string(&mut self) -> LexerResult {
         let mut buf = String::new();
-        while let Ok(Some(ch)) = self.peek() {
+        while let Some(ch) = self.peek()? {
             if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' {
                 buf.push(ch as char);
                 let _ = self.next();
@@ -72,7 +71,7 @@ impl<R: Read> Lexer<R> {
     fn parse_number(&mut self) -> LexerResult {
         let mut buf = String::new();
 
-        while let Ok(Some(ch)) = self.peek() {
+        while let Some(ch) = self.peek()? {
             if ch >= b'0' && ch <= b'9' {
                 buf.push(ch as char);
                 let _ = self.next();
@@ -109,7 +108,7 @@ impl<R: Read> Lexer<R> {
 
     fn parse_line_comment(&mut self) -> LexerResult {
         let mut buf = "/".to_owned();
-        while let Ok(Some(ch)) = self.next() {
+        while let Some(ch) = self.next()? {
             if ch == b'\n' {
                 let c = Token::Comment(buf);
                 println!("{}", c);
