@@ -3,14 +3,14 @@ use std::fmt;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum KeyWords
 {
     IF,
     ELSE,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Operators
 {
     ADD,
@@ -21,7 +21,7 @@ pub fn is_keywords(s: &str) -> bool {
     Token::key_word_index(s).is_some()
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Token
 {
     Space,

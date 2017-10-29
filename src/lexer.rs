@@ -34,18 +34,16 @@ impl<R: Read> Lexer<R> {
 
     fn parse(&mut self) -> LexerResult {
         match self.peek() {
-            Ok(Some(ch)) => {
-                match ch {
-                    b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
-                    b'0'...b'9' => self.parse_number(),
-                    b'/' => self.parse_slash(),
-                    b' ' | b'\n' | b'\r' => {
-                        let _ = self.next();
-                        Ok(Some(Token::Space))
-                    }
-                    _ => self.parse_other(),
+            Ok(Some(ch)) => match ch {
+                b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
+                b'0'...b'9' => self.parse_number(),
+                b'/' => self.parse_slash(),
+                b' ' | b'\n' | b'\r' => {
+                    let _ = self.next();
+                    Ok(Some(Token::Space))
                 }
-            }
+                _ => self.parse_other(),
+            },
             Ok(None) => Ok(None),
             Err(e) => panic!("{:?}", e),
         }
@@ -148,4 +146,15 @@ impl<R: Read> Lexer<R> {
             },
         }
     }
+}
+
+#[test]
+fn test_key_words() {
+    let source = "if else".to_owned();
+
+    let mut lexer = Lexer::new(source.as_bytes());
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::IF));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Space);
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::ELSE));
+    assert_eq!(Iterator::next(&mut lexer), None);
 }
