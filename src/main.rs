@@ -5,10 +5,22 @@ use token::*;
 
 use std::io;
 use std::io::{Bytes, Read};
+use std::iter::Iterator;
 
 struct Lexer<R> {
     ch: Option<u8>,
     iter: Bytes<R>,
+}
+
+impl<R: Read> Iterator for Lexer<R> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.parse() {
+            Ok(it) => it,
+            Err(e) => panic!("{:?}", e),
+        }
+    }
 }
 
 impl<R: Read> Lexer<R> {
@@ -22,22 +34,18 @@ impl<R: Read> Lexer<R> {
     pub fn parse(&mut self) -> io::Result<Option<Token>> {
         match self.peek() {
             Ok(Some(ch)) => {
-                let r = match ch {
+                match ch {
                     b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                     b'0'...b'9' => self.parse_number(),
                     b'/' => self.parse_slash(),
                     b' ' | b'\n' | b'\r' => {
                         let _ = self.next();
-                        Ok(None)
+                        Ok(Some(Token::Space))
                     }
                     _ => self.parse_other(),
-                };
-
-                println!("{:?}", r);
-
-                return r;
+                }
             }
-            Ok(None) => return Ok(Some(Token::End)),
+            Ok(None) => Ok(None),
             Err(e) => panic!("{:?}", e),
         }
     }
@@ -56,12 +64,10 @@ impl<R: Read> Lexer<R> {
         let buf = &buf.as_str();
 
         if is_keywords(buf) {
-            println!("{}", Token::key_word(buf));
+            Ok(Some(Token::key_word(buf)))
         } else {
-            println!("string: {}", buf);
+            Ok(Some(Token::comment(buf)))
         }
-
-        Ok(None)
     }
 
     fn parse_number(&mut self) -> io::Result<Option<Token>> {
@@ -76,18 +82,13 @@ impl<R: Read> Lexer<R> {
             }
         }
 
-        println!("number: {}", buf);
-
-        Ok(None)
+        Ok(Some(Token::Number(buf)))
     }
 
     fn parse_other(&mut self) -> io::Result<Option<Token>> {
-        println!(
-            "got other character: `{}'",
-            self.next().unwrap().unwrap() as char
-        );
+        let ch = self.next().unwrap().unwrap() as char;
 
-        Ok(None)
+        Ok(Some(Token::comment(&ch.to_string())))
     }
 
     fn parse_slash(&mut self) -> io::Result<Option<Token>> {
@@ -150,11 +151,10 @@ fn main() {
     let source = "if (11 + 22 == 33) then 2/1//aaa\n else bbb".to_owned();
 
     let mut lexer = Lexer::new(source.as_bytes());
-    while let Ok(r) = lexer.parse() {
-        match r {
-            Some(Token::End) => break,
-            Some(token) => println!("{:?}", token),
-            None => continue,
-        }
+    while let Some(tok) = Iterator::next(&mut lexer) {
+        match tok {
+            Token::Space => continue,
+            _ => println!("{:?}", tok),
+        };
     }
 }

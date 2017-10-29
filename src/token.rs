@@ -24,8 +24,9 @@ pub fn is_keywords(s: &str) -> bool {
 #[derive(Debug)]
 pub enum Token
 {
-    End,
+    Space,
     Comment(String),
+    Number(String),
     KeyWord(KeyWords),
     Operator(Operators),
 }
@@ -52,7 +53,8 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            &Token::End => write!(f, "End of Token"),
+            &Token::Space => write!(f, "space"),
+            &Token::Number(ref n) => write!(f, "number: {}", n),
             &Token::Comment(ref s) => write!(f, "comment: {}", s),
             &Token::KeyWord(ref k) => write!(f, "keywords: {:?}", k),
             &Token::Operator(ref o) => write!(f, "operators: {:?}", o),
