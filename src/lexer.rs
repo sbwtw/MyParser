@@ -157,3 +157,14 @@ fn test_key_words() {
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::ELSE));
     assert_eq!(Iterator::next(&mut lexer), None);
 }
+
+#[test]
+fn test_division() {
+    let source = "2/3".to_owned();
+
+    let mut lexer = Lexer::new(source.as_bytes());
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Number("2".to_owned()));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DIVISION));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Number("3".to_owned()));
+    assert_eq!(Iterator::next(&mut lexer), None);
+}
