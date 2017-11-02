@@ -33,21 +33,32 @@ impl<R: Read> Lexer<R> {
     }
 
     fn parse(&mut self) -> LexerResult {
-        match self.peek()? {
-            Some(ch) => match ch {
+
+        while let Some(c) = self.peek()? {
+            return match c {
                 b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                 b'0'...b'9' => self.parse_number(),
                 b'/' => self.parse_slash(),
                 b'+' => self.parse_add(),
                 b'#' => self.parse_preprocessor(),
-                b' ' | b'\n' | b'\r' => {
-                    self.bump();
-                    Ok(Some(Token::Space))
-                }
+                b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
+                b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
+                b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),
+                b']' => self.convert_char(Token::Bracket(Brackets::RightSquareBracket)),
+                b'{' => self.convert_char(Token::Bracket(Brackets::LeftCurlyBracket)),
+                b'}' => self.convert_char(Token::Bracket(Brackets::RightCurlyBracket)),
+                b' ' | b'\n' | b'\r' => self.convert_char(Token::Space),
                 _ => self.parse_other(),
-            },
-            None => Ok(None),
+            }
         }
+
+        Ok(None)
+    }
+
+    fn convert_char(&mut self, r: Token) -> LexerResult {
+        self.bump();
+
+        Ok(Some(r))
     }
 
     fn parse_preprocessor(&mut self) -> LexerResult {
@@ -115,6 +126,8 @@ impl<R: Read> Lexer<R> {
 
     fn parse_other(&mut self) -> LexerResult {
         let ch = self.next().unwrap().unwrap() as char;
+
+        println!("not handled character: {}", ch);
 
         Ok(Some(Token::comment(&ch.to_string())))
     }
