@@ -38,8 +38,9 @@ impl<R: Read> Lexer<R> {
                 b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
                 b'0'...b'9' => self.parse_number(),
                 b'/' => self.parse_slash(),
+                b'+' => self.parse_add(),
                 b' ' | b'\n' | b'\r' => {
-                    let _ = self.next();
+                    self.bump();
                     Ok(Some(Token::Space))
                 }
                 _ => self.parse_other(),
@@ -53,7 +54,7 @@ impl<R: Read> Lexer<R> {
         while let Some(ch) = self.peek()? {
             if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' {
                 buf.push(ch as char);
-                let _ = self.next();
+                self.bump();
             } else {
                 break;
             }
@@ -74,13 +75,28 @@ impl<R: Read> Lexer<R> {
         while let Some(ch) = self.peek()? {
             if ch >= b'0' && ch <= b'9' {
                 buf.push(ch as char);
-                let _ = self.next();
+                self.bump();
             } else {
                 break;
             }
         }
 
         Ok(Some(Token::Number(buf)))
+    }
+
+    fn parse_add(&mut self) -> LexerResult {
+        self.bump();
+
+        match self.peek()? {
+            Some(c) => match c {
+                b'+' => {
+                    self.bump();
+                    Ok(Some(Token::Operator(Operators::DoubleAdd)))
+                }
+                _ => Ok(Some(Token::Operator(Operators::Add))),
+            },
+            None => Ok(Some(Token::Operator(Operators::Add))),
+        }
     }
 
     fn parse_other(&mut self) -> LexerResult {
@@ -90,13 +106,13 @@ impl<R: Read> Lexer<R> {
     }
 
     fn parse_slash(&mut self) -> LexerResult {
-        let _ = self.next()?; // eat current ch
+        self.bump();
         let ch = self.peek()?;
         match ch {
             Some(c) => match c {
                 b'*' => self.parse_block_comment(),
                 b'/' => self.parse_line_comment(),
-                _ => Ok(Some(Token::Operator(Operators::DIVISION))),
+                _ => Ok(Some(Token::Operator(Operators::Dvision))),
             },
             None => return Ok(None),
         }
@@ -110,15 +126,17 @@ impl<R: Read> Lexer<R> {
         let mut buf = "/".to_owned();
         while let Some(ch) = self.next()? {
             if ch == b'\n' {
-                let c = Token::Comment(buf);
-                println!("{}", c);
-                return Ok(None);
+                break;
             }
 
             buf.push(ch as char);
         }
 
-        Ok(None)
+        return Ok(Some(Token::Comment(buf)));
+    }
+
+    fn bump(&mut self) {
+        let _ = self.next();
     }
 
     fn next(&mut self) -> io::Result<Option<u8>> {
@@ -152,9 +170,15 @@ fn test_key_words() {
     let source = "if else".to_owned();
 
     let mut lexer = Lexer::new(source.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::IF));
+    assert_eq!(
+        Iterator::next(&mut lexer).unwrap(),
+        Token::KeyWord(KeyWords::If)
+    );
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Space);
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::ELSE));
+    assert_eq!(
+        Iterator::next(&mut lexer).unwrap(),
+        Token::KeyWord(KeyWords::Else)
+    );
     assert_eq!(Iterator::next(&mut lexer), None);
 }
 
@@ -163,8 +187,17 @@ fn test_division() {
     let source = "2/3".to_owned();
 
     let mut lexer = Lexer::new(source.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Number("2".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DIVISION));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Number("3".to_owned()));
+    assert_eq!(
+        Iterator::next(&mut lexer).unwrap(),
+        Token::Number("2".to_owned())
+    );
+    assert_eq!(
+        Iterator::next(&mut lexer).unwrap(),
+        Token::Operator(Operators::Dvision)
+    );
+    assert_eq!(
+        Iterator::next(&mut lexer).unwrap(),
+        Token::Number("3".to_owned())
+    );
     assert_eq!(Iterator::next(&mut lexer), None);
 }

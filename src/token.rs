@@ -6,15 +6,16 @@ use std::fmt::Formatter;
 #[derive(Clone, Debug, PartialEq)]
 pub enum KeyWords
 {
-    IF,
-    ELSE,
+    If,
+    Else,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operators
 {
-    ADD,
-    DIVISION,
+    Add,
+    DoubleAdd,
+    Dvision,
 }
 
 pub fn is_keywords(s: &str) -> bool {
@@ -37,7 +38,7 @@ impl Token {
     }
 
     pub fn key_word(k: &str) -> Token {
-        const KEY_TOKEN: &'static [KeyWords] = &[ KeyWords::IF, KeyWords::ELSE ];
+        const KEY_TOKEN: &'static [KeyWords] = &[ KeyWords::If, KeyWords::Else ];
         let index = Token::key_word_index(k).unwrap();
 
         Token::KeyWord(KEY_TOKEN[index].clone())

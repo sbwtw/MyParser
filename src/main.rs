@@ -6,7 +6,7 @@ use token::*;
 use lexer::*;
 
 fn main() {
-    let source = "if (11 + 22 == 33) then 2/1//aaa\n else bbb".to_owned();
+    let source = "if (11 + 22 == 33) then 2/1//aaa\n else bbb (i + b++)".to_owned();
 
     let mut lexer = Lexer::new(source.as_bytes());
     while let Some(tok) = lexer.next() {
