@@ -33,7 +33,6 @@ impl<R: Read> Lexer<R> {
     }
 
     fn parse(&mut self) -> LexerResult {
-
         while let Some(c) = self.peek()? {
             return match c {
                 b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
@@ -48,9 +47,9 @@ impl<R: Read> Lexer<R> {
                 b']' => self.convert_char(Token::Bracket(Brackets::RightSquareBracket)),
                 b'{' => self.convert_char(Token::Bracket(Brackets::LeftCurlyBracket)),
                 b'}' => self.convert_char(Token::Bracket(Brackets::RightCurlyBracket)),
-                b' ' | b'\n' | b'\r' => self.convert_char(Token::Space),
+                b' ' | b'\n' | b'\r' | b'\t' => self.convert_char(Token::Space),
                 _ => self.parse_other(),
-            }
+            };
         }
 
         Ok(None)
@@ -157,6 +156,25 @@ impl<R: Read> Lexer<R> {
     }
 
     fn parse_block_comment(&mut self) -> LexerResult {
+        self.bump();
+        let mut buf = "/*".to_owned();
+
+        while let Some(c) = self.next()? {
+            match c {
+                b'*' => {
+                    buf.push('*');
+                    match self.peek()? {
+                        Some(b'/') => {
+                            buf.push('/');
+                            return self.convert_char(Token::Comment(buf));
+                        }
+                        _ => continue,
+                    }
+                }
+                c @ _ => buf.push(c as char),
+            }
+        }
+
         Ok(None)
     }
 
@@ -237,5 +255,15 @@ fn test_division() {
         Iterator::next(&mut lexer).unwrap(),
         Token::Number("3".to_owned())
     );
+    assert_eq!(Iterator::next(&mut lexer), None);
+}
+
+#[test]
+fn test_comment() {
+    let source = "/**\naa\rbb\ta*/".to_owned();
+    let s = source.clone();
+
+    let mut lexer = Lexer::new(s.as_bytes());
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source));
     assert_eq!(Iterator::next(&mut lexer), None);
 }
