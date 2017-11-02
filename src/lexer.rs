@@ -41,6 +41,7 @@ impl<R: Read> Lexer<R> {
                 b'+' => self.parse_add(),
                 b'#' => self.parse_preprocessor(),
                 b'=' => self.parse_equal(),
+                b'"' => self.parse_literal_str(),
                 b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
                 b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
                 b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),
@@ -59,6 +60,31 @@ impl<R: Read> Lexer<R> {
         self.bump();
 
         Ok(Some(r))
+    }
+
+    fn parse_literal_str(&mut self) -> LexerResult {
+        self.bump();
+        let mut buf = "\"".to_owned();
+
+        while let Some(c) = self.next()? {
+            match c {
+                b'\\' => {
+                    match self.next()? {
+                        Some(b'n') => buf.push('\n'),
+                        Some(b'"') => buf.push('"'),
+                        Some(b'\\') => buf.push('\\'),
+                        _ => return Ok(None),
+                    }
+                },
+                b'"' => {
+                    buf.push('"');
+                    return self.convert_char(Token::LiteralStr(buf));
+                },
+                _ => buf.push(c as char),
+            }
+        }
+
+        Ok(None)
     }
 
     fn parse_equal(&mut self) -> LexerResult {
@@ -265,5 +291,22 @@ fn test_comment() {
 
     let mut lexer = Lexer::new(s.as_bytes());
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source));
+    assert_eq!(Iterator::next(&mut lexer), None);
+}
+
+#[test]
+fn test_literal_str() {
+    let src = r#""this is literal \"String\".""#.to_owned();
+    let dst = "\"this is literal \"String\".\"".to_owned();
+
+    let mut lexer = Lexer::new(src.as_bytes());
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
+    assert_eq!(Iterator::next(&mut lexer), None);
+
+    let src = r#""with escape \n character \\""#.to_owned();
+    let dst = "\"with escape \n character \\\"".to_owned();
+
+    let mut lexer = Lexer::new(src.as_bytes());
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
     assert_eq!(Iterator::next(&mut lexer), None);
 }

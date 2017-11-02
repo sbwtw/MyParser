@@ -22,13 +22,6 @@ pub enum Operators
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Quotes
-{
-    SingleQuote,
-    DoubleQuote,
-}
-
-#[derive(Clone, Debug, PartialEq)]
 pub enum Brackets
 {
     LeftParenthesis,
@@ -47,8 +40,8 @@ pub fn is_keywords(s: &str) -> bool {
 pub enum Token
 {
     Space,
-    Quote(Quotes),
     Bracket(Brackets),
+    LiteralStr(String),
     Comment(String),
     Number(String),
     KeyWord(KeyWords),
@@ -79,7 +72,7 @@ impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             &Token::Space => write!(f, "space"),
-            &Token::Quote(ref q) => write!(f, "quote: {:?}", q),
+            &Token::LiteralStr(ref s) => write!(f, "literal: {}", s),
             &Token::Bracket(ref b) => write!(f, "bracket: {:?}", b),
             &Token::Number(ref n) => write!(f, "number: {}", n),
             &Token::Comment(ref s) => write!(f, "comment: {}", s),
