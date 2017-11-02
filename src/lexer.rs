@@ -41,6 +41,7 @@ impl<R: Read> Lexer<R> {
                 b'/' => self.parse_slash(),
                 b'+' => self.parse_add(),
                 b'#' => self.parse_preprocessor(),
+                b'=' => self.parse_equal(),
                 b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
                 b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
                 b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),
@@ -59,6 +60,16 @@ impl<R: Read> Lexer<R> {
         self.bump();
 
         Ok(Some(r))
+    }
+
+    fn parse_equal(&mut self) -> LexerResult {
+        self.bump();
+
+        if let Some(b'=') = self.peek()? {
+            self.convert_char(Token::Operator(Operators::Equal))
+        } else {
+            Ok(Some(Token::Operator(Operators::Assign)))
+        }
     }
 
     fn parse_preprocessor(&mut self) -> LexerResult {
