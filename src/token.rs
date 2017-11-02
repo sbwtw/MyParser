@@ -16,6 +16,9 @@ pub enum Operators
     Add,
     DoubleAdd,
     Dvision,
+    Assign,
+    Equal,
+    AddEqual,
 }
 
 pub fn is_keywords(s: &str) -> bool {
@@ -30,6 +33,7 @@ pub enum Token
     Number(String),
     KeyWord(KeyWords),
     Operator(Operators),
+    Preprocessor(String),
 }
 
 impl Token {
@@ -59,6 +63,7 @@ impl Display for Token {
             &Token::Comment(ref s) => write!(f, "comment: {}", s),
             &Token::KeyWord(ref k) => write!(f, "keywords: {:?}", k),
             &Token::Operator(ref o) => write!(f, "operators: {:?}", o),
+            &Token::Preprocessor(ref p) => write!(f, "preprocessor: {}", p),
         }
     }
 }

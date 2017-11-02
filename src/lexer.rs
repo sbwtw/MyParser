@@ -39,6 +39,7 @@ impl<R: Read> Lexer<R> {
                 b'0'...b'9' => self.parse_number(),
                 b'/' => self.parse_slash(),
                 b'+' => self.parse_add(),
+                b'#' => self.parse_preprocessor(),
                 b' ' | b'\n' | b'\r' => {
                     self.bump();
                     Ok(Some(Token::Space))
@@ -47,6 +48,19 @@ impl<R: Read> Lexer<R> {
             },
             None => Ok(None),
         }
+    }
+
+    fn parse_preprocessor(&mut self) -> LexerResult {
+        let mut buf = String::new();
+
+        while let Some(c) = self.next()? {
+            match c {
+                b'\n' | b'\r' => break,
+                _ => buf.push(c as char),
+            }
+        }
+
+        Ok(Some(Token::Preprocessor(buf)))
     }
 
     fn parse_string(&mut self) -> LexerResult {
