@@ -4,15 +4,45 @@ use std::fmt::Display;
 use std::fmt::Formatter;
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum KeyWords
-{
-    If,
+pub enum KeyWords {
+    Auto,
+    Break,
+    Case,
+    Char,
+    Const,
+    Continue,
+    Default,
+    Do,
+    Double,
     Else,
+    Enum,
+    Extern,
+    Float,
+    For,
+    Goto,
+    If,
+    Inline,
+    Int,
+    Long,
+    Register,
+    Restrict,
+    Return,
+    Short,
+    Signed,
+    Sizeof,
+    Static,
+    Struct,
+    Switch,
+    Typedef,
+    Union,
+    Unsigned,
+    Void,
+    Volatile,
+    While,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Operators
-{
+pub enum Operators {
     Add,
     DoubleAdd,
     Dvision,
@@ -22,8 +52,7 @@ pub enum Operators
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum Brackets
-{
+pub enum Brackets {
     LeftParenthesis,
     RightParenthesis,
     LeftSquareBracket,
@@ -37,16 +66,17 @@ pub fn is_keywords(s: &str) -> bool {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum Token
-{
-    Space,
+pub enum Token {
+    Asterisk,
     Bracket(Brackets),
-    LiteralStr(String),
     Comment(String),
-    Number(String),
     KeyWord(KeyWords),
+    LiteralStr(String),
+    Number(String),
     Operator(Operators),
     Preprocessor(String),
+    Space,
+    Semicolon,
 }
 
 impl Token {
@@ -55,14 +85,84 @@ impl Token {
     }
 
     pub fn key_word(k: &str) -> Token {
-        const KEY_TOKEN: &'static [KeyWords] = &[ KeyWords::If, KeyWords::Else ];
+        const KEY_TOKEN: &'static [KeyWords] = &[
+            KeyWords::Auto,
+            KeyWords::Break,
+            KeyWords::Case,
+            KeyWords::Char,
+            KeyWords::Const,
+            KeyWords::Continue,
+            KeyWords::Default,
+            KeyWords::Do,
+            KeyWords::Double,
+            KeyWords::Else,
+            KeyWords::Enum,
+            KeyWords::Extern,
+            KeyWords::Float,
+            KeyWords::For,
+            KeyWords::Goto,
+            KeyWords::If,
+            KeyWords::Inline,
+            KeyWords::Int,
+            KeyWords::Long,
+            KeyWords::Register,
+            KeyWords::Restrict,
+            KeyWords::Return,
+            KeyWords::Short,
+            KeyWords::Signed,
+            KeyWords::Sizeof,
+            KeyWords::Static,
+            KeyWords::Struct,
+            KeyWords::Switch,
+            KeyWords::Typedef,
+            KeyWords::Union,
+            KeyWords::Unsigned,
+            KeyWords::Void,
+            KeyWords::Volatile,
+            KeyWords::While,
+        ];
         let index = Token::key_word_index(k).unwrap();
 
         Token::KeyWord(KEY_TOKEN[index].clone())
     }
 
     fn key_word_index(s: &str) -> Option<usize> {
-        const KEY_WORDS: &'static [&'static str] = &[ "if", "else" ];
+        const KEY_WORDS: &'static [&'static str] = &[
+            "auto",
+            "break",
+            "case",
+            "char",
+            "const",
+            "continue",
+            "default",
+            "do",
+            "double",
+            "else",
+            "enum",
+            "extern",
+            "float",
+            "for",
+            "goto",
+            "if",
+            "inline",
+            "int",
+            "long",
+            "register",
+            "restrict",
+            "return",
+            "short",
+            "signed",
+            "sizeof",
+            "static",
+            "struct",
+            "switch",
+            "typedef",
+            "union",
+            "unsigned",
+            "void",
+            "volatile",
+            "while",
+        ];
 
         KEY_WORDS.iter().position(|&x| x == s)
     }
@@ -72,6 +172,8 @@ impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             &Token::Space => write!(f, "space"),
+            &Token::Semicolon => write!(f, "semicolon"),
+            &Token::Asterisk => write!(f, "asterisk"),
             &Token::LiteralStr(ref s) => write!(f, "literal: {}", s),
             &Token::Bracket(ref b) => write!(f, "bracket: {:?}", b),
             &Token::Number(ref n) => write!(f, "number: {}", n),

@@ -35,13 +35,15 @@ impl<R: Read> Lexer<R> {
     fn parse(&mut self) -> LexerResult {
         while let Some(c) = self.peek()? {
             return match c {
-                b'a'...b'z' | b'A'...b'Z' => self.parse_string(),
+                b'a'...b'z' | b'A'...b'Z' | b'_' => self.parse_string(),
                 b'0'...b'9' => self.parse_number(),
                 b'/' => self.parse_slash(),
                 b'+' => self.parse_add(),
                 b'#' => self.parse_preprocessor(),
                 b'=' => self.parse_equal(),
                 b'"' => self.parse_literal_str(),
+                b';' => self.convert_char(Token::Semicolon),
+                b'*' => self.convert_char(Token::Asterisk),
                 b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
                 b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
                 b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),
@@ -113,7 +115,7 @@ impl<R: Read> Lexer<R> {
     fn parse_string(&mut self) -> LexerResult {
         let mut buf = String::new();
         while let Some(ch) = self.peek()? {
-            if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' {
+            if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' || ch == b'_' {
                 buf.push(ch as char);
                 self.bump();
             } else {
