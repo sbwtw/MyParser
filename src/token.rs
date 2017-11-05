@@ -77,11 +77,16 @@ pub enum Token {
     Preprocessor(String),
     Space,
     Semicolon,
+    Variable(String),
 }
 
 impl Token {
     pub fn comment(c: &str) -> Token {
         Token::Comment(c.to_owned())
+    }
+
+    pub fn variable(v: &str) -> Token {
+        Token::Variable(v.to_owned())
     }
 
     pub fn key_word(k: &str) -> Token {
@@ -181,6 +186,7 @@ impl Display for Token {
             &Token::KeyWord(ref k) => write!(f, "keywords: {:?}", k),
             &Token::Operator(ref o) => write!(f, "operators: {:?}", o),
             &Token::Preprocessor(ref p) => write!(f, "preprocessor: {}", p),
+            &Token::Variable(ref v) => write!(f, "variable: {}", v),
         }
     }
 }

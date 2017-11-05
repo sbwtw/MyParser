@@ -128,7 +128,7 @@ impl<R: Read> Lexer<R> {
         if is_keywords(buf) {
             Ok(Some(Token::key_word(buf)))
         } else {
-            Ok(Some(Token::comment(buf)))
+            Ok(Some(Token::variable(buf)))
         }
     }
 
