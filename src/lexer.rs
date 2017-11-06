@@ -39,6 +39,7 @@ impl<R: Read> Lexer<R> {
                 b'0'...b'9' => self.parse_number(),
                 b'/' => self.parse_slash(),
                 b'+' => self.parse_add(),
+                b'-' => self.parse_minus(),
                 b'#' => self.parse_preprocessor(),
                 b'=' => self.parse_equal(),
                 b'"' => self.parse_literal_str(),
@@ -87,6 +88,17 @@ impl<R: Read> Lexer<R> {
         }
 
         Ok(None)
+    }
+
+    fn parse_minus(&mut self) -> LexerResult {
+        self.bump();
+
+        match self.peek()? {
+            Some(b'>') => self.convert_char(Token::Arrow),
+            Some(b'-') => self.convert_char(Token::Operator(Operators::DoubleMinus)),
+            Some(b'=') => self.convert_char(Token::Operator(Operators::MinusEqual)),
+            _ => Ok(Some(Token::Operator(Operators::Minus))),
+        }
     }
 
     fn parse_equal(&mut self) -> LexerResult {

@@ -61,11 +61,15 @@ impl KeyWords {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operators {
     Add,
-    DoubleAdd,
-    Dvision,
     Assign,
-    Equal,
     AddEqual,
+    Arrow,
+    DoubleAdd,
+    DoubleMinus,
+    Dvision,
+    Equal,
+    Minus,
+    MinusEqual,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -80,6 +84,7 @@ pub enum Brackets {
 
 #[derive(Debug, PartialEq)]
 pub enum Token {
+    Arrow,
     Asterisk,
     Bracket(Brackets),
     Comment(String),
@@ -193,6 +198,7 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
+            &Token::Arrow => write!(f, "arrow"),
             &Token::Space => write!(f, "space"),
             &Token::Semicolon => write!(f, "semicolon"),
             &Token::Asterisk => write!(f, "asterisk"),
