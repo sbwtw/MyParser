@@ -63,13 +63,20 @@ pub enum Operators {
     Add,
     Assign,
     AddEqual,
+    And,
     Arrow,
     DoubleAdd,
     DoubleMinus,
     Dvision,
     Equal,
+    LogicAnd,
+    LogicNot,
+    LogicOr,
     Minus,
     MinusEqual,
+    Not,
+    Or,
+    Xor,
 }
 
 #[derive(Clone, Debug, PartialEq)]

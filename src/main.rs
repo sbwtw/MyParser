@@ -2,7 +2,6 @@
 mod token;
 mod lexer;
 
-use token::*;
 use lexer::*;
 
 use std::fs::File;
@@ -19,7 +18,6 @@ fn main() {
 
     while let Some(tok) = lexer.next() {
         match tok {
-            Token::Space => continue,
             _ => println!("{}", tok),
         };
     }

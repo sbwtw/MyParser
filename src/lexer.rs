@@ -43,17 +43,22 @@ impl<R: Read> Lexer<R> {
                 b'#' => self.parse_preprocessor(),
                 b'=' => self.parse_equal(),
                 b'"' => self.parse_literal_str(),
+                b'&' => self.parse_and(),
+                b'|' => self.parse_or(),
                 b';' => self.convert_char(Token::Semicolon),
                 b'*' => self.convert_char(Token::Asterisk),
                 b',' => self.convert_char(Token::Comma),
                 b'.' => self.convert_char(Token::Dot),
+                b'^' => self.convert_char(Token::Operator(Operators::Xor)),
+                b'~' => self.convert_char(Token::Operator(Operators::Not)),
+                b'!' => self.convert_char(Token::Operator(Operators::LogicNot)),
                 b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
                 b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
                 b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),
                 b']' => self.convert_char(Token::Bracket(Brackets::RightSquareBracket)),
                 b'{' => self.convert_char(Token::Bracket(Brackets::LeftCurlyBracket)),
                 b'}' => self.convert_char(Token::Bracket(Brackets::RightCurlyBracket)),
-                b' ' | b'\n' | b'\r' | b'\t' => self.convert_char(Token::Space),
+                b' ' | b'\n' | b'\r' | b'\t' => { self.bump(); return self.parse(); },
                 _ => self.parse_other(),
             };
         }
@@ -65,6 +70,28 @@ impl<R: Read> Lexer<R> {
         self.bump();
 
         Ok(Some(r))
+    }
+
+    fn parse_and(&mut self) -> LexerResult {
+        self.bump();
+
+        match self.peek()? {
+            Some(b'&') => return self.convert_char(Token::Operator(Operators::LogicAnd)),
+            _ => {},
+        }
+
+        Ok(Some(Token::Operator(Operators::And)))
+    }
+
+    fn parse_or(&mut self) -> LexerResult {
+        self.bump();
+
+        match self.peek()? {
+            Some(b'|') => return self.convert_char(Token::Operator(Operators::LogicOr)),
+            _ => {},
+        }
+
+        Ok(Some(Token::Operator(Operators::Or)))
     }
 
     fn parse_literal_str(&mut self) -> LexerResult {
@@ -272,7 +299,6 @@ fn test_key_words() {
         Iterator::next(&mut lexer).unwrap(),
         Token::KeyWord(KeyWords::If)
     );
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Space);
     assert_eq!(
         Iterator::next(&mut lexer).unwrap(),
         Token::KeyWord(KeyWords::Else)
