@@ -41,6 +41,23 @@ pub enum KeyWords {
     While,
 }
 
+impl KeyWords {
+    pub fn is_type(&self) -> bool {
+        match self {
+            // Char | Short | Int | Unsigned | Signed | Long | Double | Float => true,
+            Char => true,
+            Short => true,
+            Int => true,
+            Signed => true,
+            Unsigned => true,
+            Long => true,
+            Double => true,
+            Float => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum Operators {
     Add,
@@ -61,10 +78,6 @@ pub enum Brackets {
     RightCurlyBracket,
 }
 
-pub fn is_keywords(s: &str) -> bool {
-    Token::key_word_index(s).is_some()
-}
-
 #[derive(Debug, PartialEq)]
 pub enum Token {
     Asterisk,
@@ -78,6 +91,10 @@ pub enum Token {
     Space,
     Semicolon,
     Variable(String),
+}
+
+pub fn is_keywords(s: &str) -> bool {
+    Token::key_word_index(s).is_some()
 }
 
 impl Token {
