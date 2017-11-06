@@ -45,6 +45,8 @@ impl<R: Read> Lexer<R> {
                 b'"' => self.parse_literal_str(),
                 b';' => self.convert_char(Token::Semicolon),
                 b'*' => self.convert_char(Token::Asterisk),
+                b',' => self.convert_char(Token::Comma),
+                b'.' => self.convert_char(Token::Dot),
                 b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
                 b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
                 b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),

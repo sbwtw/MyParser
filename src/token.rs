@@ -88,6 +88,8 @@ pub enum Token {
     Asterisk,
     Bracket(Brackets),
     Comment(String),
+    Comma,
+    Dot,
     KeyWord(KeyWords),
     LiteralStr(String),
     Number(String),
@@ -198,18 +200,20 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            &Token::Arrow => write!(f, "arrow"),
-            &Token::Space => write!(f, "space"),
-            &Token::Semicolon => write!(f, "semicolon"),
-            &Token::Asterisk => write!(f, "asterisk"),
-            &Token::LiteralStr(ref s) => write!(f, "literal: {}", s),
-            &Token::Bracket(ref b) => write!(f, "bracket: {:?}", b),
-            &Token::Number(ref n) => write!(f, "number: {}", n),
-            &Token::Comment(ref s) => write!(f, "comment: {}", s),
-            &Token::KeyWord(ref k) => write!(f, "keywords: {:?}", k),
-            &Token::Operator(ref o) => write!(f, "operators: {:?}", o),
-            &Token::Preprocessor(ref p) => write!(f, "preprocessor: {}", p),
-            &Token::Variable(ref v) => write!(f, "variable: {}", v),
+            &Token::Arrow => write!(f, "arrow:\t\t '->'"),
+            &Token::Space => write!(f, "space:\t\t ' '"),
+            &Token::Semicolon => write!(f, "semicolon:\t ';'"),
+            &Token::Asterisk => write!(f, "asterisk:\t '*'"),
+            &Token::Comma => write!(f, "comma:\t\t ','"),
+            &Token::Dot => write!(f, "dot:\t\t '.'"),
+            &Token::LiteralStr(ref s) => write!(f, "literal:\t {}", s),
+            &Token::Bracket(ref b) => write!(f, "bracket:\t {:?}", b),
+            &Token::Number(ref n) => write!(f, "number:\t\t {}", n),
+            &Token::Comment(ref s) => write!(f, "comment:\t {}", s),
+            &Token::KeyWord(ref k) => write!(f, "keywords:\t {:?}", k),
+            &Token::Operator(ref o) => write!(f, "operators:\t {:?}", o),
+            &Token::Preprocessor(ref p) => write!(f, "preprocessor:\t {}", p),
+            &Token::Variable(ref v) => write!(f, "variable:\t {}", v),
         }
     }
 }

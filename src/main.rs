@@ -20,7 +20,7 @@ fn main() {
     while let Some(tok) = lexer.next() {
         match tok {
             Token::Space => continue,
-            _ => println!("{:?}", tok),
+            _ => println!("{}", tok),
         };
     }
 }
