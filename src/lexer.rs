@@ -354,8 +354,7 @@ fn test_literal_str() {
 }
 
 #[test]
-fn test_struct_define()
-{
+fn test_struct_define() {
     let src = "
 struct {
     /* field a */
@@ -378,6 +377,25 @@ struct {
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("b0".to_owned()));
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Bracket(Brackets::RightCurlyBracket));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+    assert_eq!(Iterator::next(&mut lexer), None);
+}
+
+#[test]
+fn test_double_minus() {
+    let src = "
+    point->x--;
+    --i;
+".to_owned();
+
+    let mut lexer = Lexer::new(src.as_bytes());
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("point".to_owned()));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Arrow);
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("x".to_owned()));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DoubleMinus));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DoubleMinus));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("i".to_owned()));
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
     assert_eq!(Iterator::next(&mut lexer), None);
 }
