@@ -224,3 +224,10 @@ impl Display for Token {
         }
     }
 }
+
+#[test]
+fn test_keywords() {
+    assert!(is_keywords("struct"));
+    assert!(is_keywords("unsigned"));
+    assert!(!is_keywords("bool"));
+}

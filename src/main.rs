@@ -17,8 +17,6 @@ fn main() {
     let mut lexer = Lexer::new(f);
 
     while let Some(tok) = lexer.next() {
-        match tok {
-            _ => println!("{}", tok),
-        };
+        println!("{}", tok);
     }
 }

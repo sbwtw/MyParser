@@ -17,10 +17,7 @@ int main()
 
     let mut lexer = Lexer::new(source.as_bytes());
     while let Some(tok) = lexer.next() {
-        match tok {
-            Token::Space => continue,
-            _ => println!("{:?}", tok),
-        }
+        println!("{:?}", tok),
     }
 ```
 The output is:
