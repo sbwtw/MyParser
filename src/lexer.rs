@@ -3,17 +3,17 @@
 use token::*;
 
 use std::io;
-use std::io::{Bytes, Read};
+use std::io::Read;
 use std::iter::Iterator;
 
 type LexerResult = io::Result<Option<Token>>;
 
-pub struct Lexer<R> {
+pub struct Lexer {
     ch: Option<u8>,
-    iter: Bytes<R>,
+    iter: Box<Iterator<Item=io::Result<u8>>>,
 }
 
-impl<R: Read> Iterator for Lexer<R> {
+impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -24,11 +24,11 @@ impl<R: Read> Iterator for Lexer<R> {
     }
 }
 
-impl<R: Read> Lexer<R> {
-    pub fn new(iter: R) -> Lexer<R> {
+impl Lexer {
+    pub fn new<R: Read + 'static>(rdr: R) -> Lexer {
         Lexer {
             ch: None,
-            iter: iter.bytes(),
+            iter: Box::new(rdr.bytes()),
         }
     }
 

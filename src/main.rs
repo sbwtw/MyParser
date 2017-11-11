@@ -1,8 +1,10 @@
 
 mod token;
 mod lexer;
+mod lr_parser;
 
 use lexer::*;
+use lr_parser::*;
 
 use std::fs::File;
 
@@ -16,7 +18,9 @@ fn main() {
     let f = File::open("test/test.c").unwrap();
     let mut lexer = Lexer::new(f);
 
-    while let Some(tok) = lexer.next() {
-        println!("{}", tok);
-    }
+    // while let Some(tok) = lexer.next() {
+    //     println!("{}", tok);
+    // }
+
+    let parser = LRParser::new(lexer);
 }
