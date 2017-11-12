@@ -292,7 +292,7 @@ impl Lexer {
 
 #[test]
 fn test_key_words() {
-    let source = "if else".to_owned();
+    let source = "if else";
 
     let mut lexer = Lexer::new(source.as_bytes());
     assert_eq!(
@@ -308,7 +308,7 @@ fn test_key_words() {
 
 #[test]
 fn test_division() {
-    let source = "2/3".to_owned();
+    let source = "2/3";
 
     let mut lexer = Lexer::new(source.as_bytes());
     assert_eq!(
@@ -328,24 +328,24 @@ fn test_division() {
 
 #[test]
 fn test_comment() {
-    let source = "/**\naa\rbb\ta*/".to_owned();
+    let source = "/**\naa\rbb\ta*/";
     let s = source.clone();
 
     let mut lexer = Lexer::new(s.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source));
+    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source.to_owned()));
     assert_eq!(Iterator::next(&mut lexer), None);
 }
 
 #[test]
 fn test_literal_str() {
-    let src = r#""this is literal \"String\".""#.to_owned();
+    let src = r#""this is literal \"String\".""#;
     let dst = "\"this is literal \"String\".\"".to_owned();
 
     let mut lexer = Lexer::new(src.as_bytes());
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
     assert_eq!(Iterator::next(&mut lexer), None);
 
-    let src = r#""with escape \n character \\""#.to_owned();
+    let src = r#""with escape \n character \\""#;
     let dst = "\"with escape \n character \\\"".to_owned();
 
     let mut lexer = Lexer::new(src.as_bytes());
@@ -362,7 +362,7 @@ struct {
     // field b
     unsigned int b0;
 };
-".to_owned();
+";
 
     let mut lexer = Lexer::new(src.as_bytes());
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Struct));
@@ -386,7 +386,7 @@ fn test_double_minus() {
     let src = "
     point->x--;
     --i;
-".to_owned();
+";
 
     let mut lexer = Lexer::new(src.as_bytes());
     assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("point".to_owned()));
