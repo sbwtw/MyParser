@@ -89,6 +89,11 @@ impl RecursiveDescentParser {
     }
 
     fn term(&mut self, tok: Token) -> bool {
+
+        if self.current >= self.tokens.len() {
+            return false;
+        }
+
         if self.tokens[self.current] == tok {
             self.current += 1;
             return true;
@@ -122,9 +127,21 @@ mod test {
 
     #[test]
     fn test_struct_define() {
-        let test = "struct Str { int a; short b; };";
+        let tests = vec!["struct Str { int a; short b; };",
+                         "struct Str {};",
+                         "\nstruct\nS\n{\nint\na\n;\n}\n;\n"];
 
-        let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-        assert!(parser.match_struct_define());
+        for test in tests {
+            let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+            assert!(parser.match_struct_define());
+        }
+
+        let tests = vec!["struct for { int a; short b; };",
+                         "struct S {}"];
+
+        for test in tests {
+            let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+            assert!(!parser.match_struct_define());
+        }
     }
 }
