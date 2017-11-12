@@ -8,6 +8,7 @@ use parser::Parser;
 /// variable = ...
 /// type = char | short | ...
 /// variable_define = type variable ;
+/// struct_define = struct variable { variable_define ... } ;
 ///
 
 pub struct RecursiveDescentParser {
@@ -38,7 +39,6 @@ impl RecursiveDescentParser {
     }
 
     fn match_variable_define(&mut self) -> bool {
-
         let cur = self.current;
 
         if self.match_type() && self.match_variable() && self.term(Token::Semicolon) {
@@ -47,6 +47,35 @@ impl RecursiveDescentParser {
 
         self.current = cur;
         return false;
+    }
+
+    fn match_struct_define(&mut self) -> bool {
+        let cur = self.current;
+
+        if !self.term(Token::KeyWord(KeyWords::Struct)) {
+            self.current = cur;
+            return false;
+        }
+
+        match self.tokens[self.current] {
+            Token::Variable(_) => self.current += 1,
+            _ => return false,
+        }
+
+        if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) {
+            self.current = cur;
+            return false;
+        }
+
+        while self.match_variable_define() {}
+
+        if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) ||
+           !self.term(Token::Semicolon) {
+            self.current = cur;
+            return false;
+        }
+
+        return true;
     }
 
     fn match_variable(&mut self) -> bool {
@@ -72,5 +101,30 @@ impl RecursiveDescentParser {
 impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
         self.match_variable_define()
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use RecursiveDescentParser;
+    use Lexer;
+
+    #[test]
+    fn test_variable_define() {
+        let tests = vec!["int number;", "short num0 ; ", "double\nd;"];
+
+        for test in tests {
+            let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+            assert!(parser.match_variable_define());
+        }
+    }
+
+    #[test]
+    fn test_struct_define() {
+        let test = "struct Str { int a; short b; };";
+
+        let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+        assert!(parser.match_struct_define());
     }
 }

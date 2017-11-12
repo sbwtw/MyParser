@@ -326,76 +326,84 @@ fn test_division() {
     assert_eq!(Iterator::next(&mut lexer), None);
 }
 
-#[test]
-fn test_comment() {
-    let source = "/**\naa\rbb\ta*/";
-    let s = source.clone();
+#[cfg(test)]
+mod test {
 
-    let mut lexer = Lexer::new(s.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source.to_owned()));
-    assert_eq!(Iterator::next(&mut lexer), None);
-}
+    use token::*;
+    use Lexer;
 
-#[test]
-fn test_literal_str() {
-    let src = r#""this is literal \"String\".""#;
-    let dst = "\"this is literal \"String\".\"".to_owned();
+    #[test]
+    fn test_comment() {
+        let source = "/**\naa\rbb\ta*/";
+        let s = source.clone();
 
-    let mut lexer = Lexer::new(src.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
-    assert_eq!(Iterator::next(&mut lexer), None);
+        let mut lexer = Lexer::new(s.as_bytes());
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source.to_owned()));
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
 
-    let src = r#""with escape \n character \\""#;
-    let dst = "\"with escape \n character \\\"".to_owned();
+    #[test]
+    fn test_literal_str() {
+        let src = r#""this is literal \"String\".""#;
+        let dst = "\"this is literal \"String\".\"".to_owned();
 
-    let mut lexer = Lexer::new(src.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
-    assert_eq!(Iterator::next(&mut lexer), None);
-}
+        let mut lexer = Lexer::new(src.as_bytes());
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
+        assert_eq!(Iterator::next(&mut lexer), None);
 
-#[test]
-fn test_struct_define() {
-    let src = "
-struct {
-    /* field a */
-    int a_;
-    // field b
-    unsigned int b0;
-};
-";
+        let src = r#""with escape \n character \\""#;
+        let dst = "\"with escape \n character \\\"".to_owned();
 
-    let mut lexer = Lexer::new(src.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Struct));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Bracket(Brackets::LeftCurlyBracket));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment("/* field a */".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Int));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("a_".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment("// field b".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Unsigned));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Int));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("b0".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Bracket(Brackets::RightCurlyBracket));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
-    assert_eq!(Iterator::next(&mut lexer), None);
-}
+        let mut lexer = Lexer::new(src.as_bytes());
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
 
-#[test]
-fn test_double_minus() {
-    let src = "
-    point->x--;
-    --i;
-";
+    #[test]
+    fn test_struct_define() {
+        let src = "
+    struct {
+        /* field a */
+        int a_;
+        // field b
+        unsigned int b0;
+    };
+    ";
 
-    let mut lexer = Lexer::new(src.as_bytes());
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("point".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Arrow);
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("x".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DoubleMinus));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DoubleMinus));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("i".to_owned()));
-    assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
-    assert_eq!(Iterator::next(&mut lexer), None);
+        let mut lexer = Lexer::new(src.as_bytes());
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Struct));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Bracket(Brackets::LeftCurlyBracket));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment("/* field a */".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Int));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("a_".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment("// field b".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Unsigned));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Int));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("b0".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Bracket(Brackets::RightCurlyBracket));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
+
+    #[test]
+    fn test_double_minus() {
+        let src = "
+        point->x--;
+        --i;
+    ";
+
+        let mut lexer = Lexer::new(src.as_bytes());
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("point".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Arrow);
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("x".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DoubleMinus));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::DoubleMinus));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Variable("i".to_owned()));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Semicolon);
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
+
 }
