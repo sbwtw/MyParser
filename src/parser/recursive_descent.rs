@@ -11,6 +11,8 @@ use parser::Parser;
 /// struct_define = struct variable { variable_define ... } ;
 ///
 
+type MatchResult = Option<Token>;
+
 pub struct RecursiveDescentParser {
     tokens: Vec<Token>,
 
@@ -26,66 +28,77 @@ impl RecursiveDescentParser {
         }
     }
 
-    fn match_type(&mut self) -> bool {
+    fn match_type(&mut self) -> MatchResult {
 
         if let KeyWord(ref k) = self.tokens[self.current] {
             if k.is_type() {
                 self.current += 1;
-                return true;
+                return Some(Token::KeyWord(k.clone()));
             }
         }
 
-        return false;
+        return None;
     }
 
-    fn match_variable_define(&mut self) -> bool {
+    fn match_variable_define(&mut self) -> MatchResult {
         let cur = self.current;
 
-        if self.match_type() && self.match_variable() && self.term(Token::Semicolon) {
-            return true;
+        if let Some(Token::KeyWord(t)) = self.match_type() {
+            println!("{:?}", t);
+
+            if let Some(Token::Variable(v)) = self.match_variable() {
+                println!("{:?}", v);
+
+                if self.term(Token::Semicolon) {
+                    // return define
+                    // !!!!!!!!!!!!!!!   error   !!!!!!!!!!!!!!!!!
+                    return Some(Token::Semicolon);
+                }
+            }
         }
 
         self.current = cur;
-        return false;
+        return None;
     }
 
-    fn match_struct_define(&mut self) -> bool {
+    fn match_struct_define(&mut self) -> MatchResult {
         let cur = self.current;
 
         if !self.term(Token::KeyWord(KeyWords::Struct)) {
             self.current = cur;
-            return false;
+            return None;
         }
 
         match self.tokens[self.current] {
             Token::Variable(_) => self.current += 1,
-            _ => return false,
+            _ => return None,
         }
 
         if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) {
             self.current = cur;
-            return false;
+            return None;
         }
 
-        while self.match_variable_define() {}
+        while self.match_variable_define().is_some() {}
 
         if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) ||
            !self.term(Token::Semicolon) {
             self.current = cur;
-            return false;
+            return None;
         }
 
-        return true;
+        // !!!!!!!!!!! error !!!!!!!!!!!!!!!!
+        return Some(Token::Semicolon);
     }
 
-    fn match_variable(&mut self) -> bool {
+    fn match_variable(&mut self) -> MatchResult {
 
-        if let Variable(_) = self.tokens[self.current] {
+        if let Variable(ref v) = self.tokens[self.current] {
             self.current += 1;
-            return true;
+            return Some(Token::Variable(v.clone()));
         }
 
-        return false;
+        return None;
     }
 
     fn term(&mut self, tok: Token) -> bool {
@@ -105,7 +118,7 @@ impl RecursiveDescentParser {
 
 impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
-        self.match_variable_define()
+        self.match_variable_define().is_some()
     }
 }
 
@@ -121,8 +134,16 @@ mod test {
 
         for test in tests {
             let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-            assert!(parser.match_variable_define());
+            assert!(parser.match_variable_define().is_some());
         }
+    }
+
+    #[ignore]
+    #[test]
+    fn test_variable_list() {
+        let test = "int a, b_, c;";
+        let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+        assert!(parser.match_variable_define().is_some());
     }
 
     #[test]
@@ -133,7 +154,7 @@ mod test {
 
         for test in tests {
             let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-            assert!(parser.match_struct_define());
+            assert!(parser.match_struct_define().is_some());
         }
 
         let tests = vec!["struct for { int a; short b; };",
@@ -141,7 +162,7 @@ mod test {
 
         for test in tests {
             let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-            assert!(!parser.match_struct_define());
+            assert!(!parser.match_struct_define().is_some());
         }
     }
 }
