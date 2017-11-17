@@ -48,3 +48,30 @@ Number("1")
 Semicolon
 Bracket(RightCurlyBracket)
 ```
+
+Print abstract syntax tree
+```
+    let src = "struct S {int a ; double b; };";
+    let lexer = Lexer::new(src.as_bytes());
+    let mut parser = RecursiveDescentParser::new(lexer);
+    parser.run();
+    parser.dump();
+```
+The output is:
+```
+SyntaxTree
+  Struct
+    Terminal(KeyWord(Struct))
+    Terminal(Variable("S"))
+    Terminal(Bracket(LeftCurlyBracket))
+    Variable
+      Terminal(KeyWord(Int))
+      Terminal(Variable("a"))
+      Terminal(Semicolon)
+    Variable
+      Terminal(KeyWord(Double))
+      Terminal(Variable("b"))
+      Terminal(Semicolon)
+    Terminal(Bracket(RightCurlyBracket))
+    Terminal(Semicolon)
+```
