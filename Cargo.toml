@@ -3,5 +3,15 @@ name = "my_parser"
 version = "0.1.0"
 authors = ["石博文 <sbw@sbw.so>"]
 
+[lib]
+name = "parser"
+path = "src/lib.rs"
+
+[[example]]
+name = "lexer"
+
+[[example]]
+name = "parser"
+
 [dependencies]
 id_tree = "*"
