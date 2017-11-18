@@ -32,6 +32,12 @@ macro_rules! insert {
     };
 }
 
+macro_rules! insert_type {
+    ($tree: expr, $root: expr, $type: expr) => {
+        $tree.insert(Node::new($type), UnderNode(&$root)).unwrap();
+    };
+}
+
 fn print_space(indentation: usize) {
     for _ in 0..indentation { print!("  "); }
 }
@@ -72,13 +78,13 @@ impl RecursiveDescentParser {
         }
     }
 
-    pub fn root_id(&self) -> NodeId {
-        self.tree.root_node_id().unwrap().clone()
-    }
-
     pub fn dump(&self) {
         let id = self.root_id();
         dump_tree(&self.tree, &id, 0);
+    }
+
+    fn root_id(&self) -> NodeId {
+        self.tree.root_node_id().unwrap().clone()
     }
 
     fn match_type(&mut self) -> TokenResult {
@@ -95,7 +101,7 @@ impl RecursiveDescentParser {
 
     fn match_variable_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
-        let self_id = self.tree.insert(Node::new(SyntaxType::Variable), UnderNode(root)).unwrap();
+        let self_id = insert_type!(self.tree, root, SyntaxType::Variable);
 
         if let Some(t) = self.match_type() {
             insert!(self.tree, self_id, t);
@@ -117,7 +123,7 @@ impl RecursiveDescentParser {
 
     fn match_struct_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
-        let self_id = self.tree.insert(Node::new(SyntaxType::Struct), UnderNode(root)).unwrap();
+        let self_id = insert_type!(self.tree, root, SyntaxType::Struct);
 
         loop {
             if !self.term(Token::KeyWord(KeyWords::Struct)) { break; }
