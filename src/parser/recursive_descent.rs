@@ -15,6 +15,14 @@ use id_tree::RemoveBehavior::*;
 /// variable_define = type variable ;
 /// struct_define = struct variable { variable_define ... } ;
 ///
+/// binary_op = && || ^ & |
+/// expr = (expr) expr_fix |
+///        !expr expr_fix |
+///        ~expr expr_fix |
+///        number expr_fix |
+///        variable expr_fix
+/// expr_fix = binary_op expr expr_fix | epslion
+///
 
 type TokenResult = Option<Token>;
 
@@ -143,14 +151,95 @@ impl RecursiveDescentParser {
         return false;
     }
 
-    fn match_variable(&mut self) -> TokenResult {
+    fn match_expr(&mut self, root: &NodeId) -> Option<NodeId> {
+        let cur = self.current;
+        let self_id = self.tree.insert(Node::new(SyntaxType::Expr), UnderNode(root)).unwrap();
 
+        loop {
+            // variable expr_fix
+            if let Some(tok) = self.match_variable() {
+                insert!(self.tree, self_id, tok);
+                self.match_expr_fix(&self_id);
+                return Some(self_id);
+            }
+
+            // number expr_fix
+            if let Some(tok) = self.match_number() {
+                insert!(self.tree, self_id, tok);
+                self.match_expr_fix(&self_id);
+                return Some(self_id);
+            }
+
+            // (expr) expr_fix
+            if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
+                // insert!(self.tree, self_id, Token::Bracket(Brackets::LeftParenthesis));
+                if self.match_expr(&self_id).is_some() && self.term(Token::Bracket(Brackets::RightParenthesis)) {
+                    // insert!(self.tree, self_id, Token::Bracket(Brackets::RightParenthesis));
+                    self.match_expr_fix(&self_id);
+                    return Some(self_id);
+                }
+                break;
+            }
+
+            break;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        None
+    }
+
+    fn match_expr_without_subtree(&mut self, root: &NodeId) -> bool {
+        if let Some(id) = self.match_expr(&root) {
+            self.tree.remove_node(id, LiftChildren).unwrap();
+        }
+
+        false
+    }
+
+    /// expr_fix = binary_op expr expr_fix | epslion
+    fn match_expr_fix(&mut self, root: &NodeId) -> bool {
+        if let Some(tok) = self.match_binary_op() {
+            insert!(self.tree, root, tok);
+            return self.match_expr_without_subtree(&root) && self.match_expr_fix(&root);
+        }
+        true
+    }
+
+    fn match_variable(&mut self) -> TokenResult {
         if let Variable(ref v) = self.tokens[self.current] {
             self.current += 1;
             return Some(Token::Variable(v.clone()));
         }
 
         return None;
+    }
+
+    fn match_number(&mut self) -> TokenResult {
+        if let Number(ref n) = self.tokens[self.current] {
+            self.current += 1;
+            return Some(Token::Variable(n.clone()));
+        }
+
+        return None;
+    }
+
+    fn match_binary_op(&mut self) -> TokenResult {
+        if self.term(Token::Operator(Operators::And)) {
+            Some(Token::Operator(Operators::And))
+        } else if self.term(Token::Operator(Operators::Or)) {
+            Some(Token::Operator(Operators::Or))
+        } else if self.term(Token::Operator(Operators::Xor)) {
+            Some(Token::Operator(Operators::Xor))
+        } else if self.term(Token::Operator(Operators::LogicAnd)) {
+            Some(Token::Operator(Operators::LogicAnd))
+        } else if self.term(Token::Operator(Operators::LogicOr)) {
+            Some(Token::Operator(Operators::LogicOr))
+        } else if self.term(Token::Operator(Operators::Equal)) {
+            Some(Token::Operator(Operators::Equal))
+        } else {
+            None
+        }
     }
 
     fn term(&mut self, tok: Token) -> bool {
@@ -171,7 +260,7 @@ impl RecursiveDescentParser {
 impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
         let id = self.root_id();
-        self.match_struct_define(&id)
+        self.match_expr(&id).is_some()
     }
 }
 

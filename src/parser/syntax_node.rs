@@ -9,6 +9,7 @@ pub enum SyntaxType {
     SyntaxTree,
     Struct,
     Variable,
+    Expr,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;

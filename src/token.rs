@@ -45,14 +45,14 @@ impl KeyWords {
     pub fn is_type(&self) -> bool {
         match self {
             // Char | Short | Int | Unsigned | Signed | Long | Double | Float => true,
-            Char => true,
-            Short => true,
-            Int => true,
-            Signed => true,
-            Unsigned => true,
-            Long => true,
-            Double => true,
-            Float => true,
+            &KeyWords::Char => true,
+            &KeyWords::Short => true,
+            &KeyWords::Int => true,
+            &KeyWords::Signed => true,
+            &KeyWords::Unsigned => true,
+            &KeyWords::Long => true,
+            &KeyWords::Double => true,
+            &KeyWords::Float => true,
             _ => false,
         }
     }
