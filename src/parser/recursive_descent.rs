@@ -210,6 +210,8 @@ impl RecursiveDescentParser {
             insert!(self.tree, root, tok);
             return self.match_expr_without_subtree(&root) && self.match_expr_fix(&root);
         }
+
+        // for epsilon move
         true
     }
 
@@ -276,6 +278,8 @@ mod test {
 
     use parser::recursive_descent::*;
 
+    use id_tree::NodeId;
+
     trait TestResult {
         fn ok(&self) -> bool;
     }
@@ -300,11 +304,11 @@ mod test {
                 assert!(parser.$func(&id).ok());
             }
         };
-        ($tests: tt, $func: ident, $r: expr) => {
+        ($tests: tt, $func: ident, $($r: tt)+) => {
             for test in $tests {
                 let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
                 let id = parser.root_id();
-                assert_eq!(parser.$func(&id).ok(), $r);
+                assert!(matches!(parser.$func(&id), $($r)+));
             }
         };
     }
@@ -338,6 +342,6 @@ mod test {
     fn test_boolean_expression() {
         let tests = vec!["a == b",
                          "a == b || c ^ d == 1"];
-        run_func!(tests, match_expr);
+        run_func!(tests, match_expr, Option::Some::<NodeId>(_));
     }
 }
