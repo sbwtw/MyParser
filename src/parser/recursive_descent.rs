@@ -21,7 +21,7 @@ use id_tree::RemoveBehavior::*;
 ///        ~expr expr_fix |
 ///        number expr_fix |
 ///        variable expr_fix
-/// expr_fix = binary_op expr expr_fix | epslion
+/// expr_fix = binary_op expr expr_fix | epsilon
 ///
 
 type TokenResult = Option<Token>;
@@ -159,7 +159,7 @@ impl RecursiveDescentParser {
 
     fn match_expr(&mut self, root: &NodeId) -> Option<NodeId> {
         let cur = self.current;
-        let self_id = self.tree.insert(Node::new(SyntaxType::Expr), UnderNode(root)).unwrap();
+        let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
 
         loop {
             // variable expr_fix
@@ -179,7 +179,8 @@ impl RecursiveDescentParser {
             // (expr) expr_fix
             if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
                 // insert!(self.tree, self_id, Token::Bracket(Brackets::LeftParenthesis));
-                if self.match_expr(&self_id).is_some() && self.term(Token::Bracket(Brackets::RightParenthesis)) {
+                if self.match_expr(&self_id).is_some() &&
+                   self.term(Token::Bracket(Brackets::RightParenthesis)) {
                     // insert!(self.tree, self_id, Token::Bracket(Brackets::RightParenthesis));
                     self.match_expr_fix(&self_id);
                     return Some(self_id);
@@ -203,7 +204,7 @@ impl RecursiveDescentParser {
         false
     }
 
-    /// expr_fix = binary_op expr expr_fix | epslion
+    /// expr_fix = binary_op expr expr_fix | epsilon
     fn match_expr_fix(&mut self, root: &NodeId) -> bool {
         if let Some(tok) = self.match_binary_op() {
             insert!(self.tree, root, tok);
@@ -273,27 +274,52 @@ impl Parser for RecursiveDescentParser {
 #[cfg(test)]
 mod test {
 
-    use lexer;
     use parser::recursive_descent::*;
+
+    trait TestResult {
+        fn ok(&self) -> bool;
+    }
+
+    impl TestResult for bool {
+        fn ok(&self) -> bool { *self }
+    }
+
+    impl<T> TestResult for Option<T> {
+        fn ok(&self) -> bool { self.is_some() }
+    }
+
+    impl<V, E> TestResult for Result<V, E> {
+        fn ok(&self) -> bool { self.is_ok() }
+    }
+
+    macro_rules! run_func {
+        ($tests: tt, $func: ident) => {
+            for test in $tests {
+                let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+                let id = parser.root_id();
+                assert!(parser.$func(&id).ok());
+            }
+        };
+        ($tests: tt, $func: ident, $r: expr) => {
+            for test in $tests {
+                let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+                let id = parser.root_id();
+                assert_eq!(parser.$func(&id).ok(), $r);
+            }
+        };
+    }
 
     #[test]
     fn test_variable_define() {
         let tests = vec!["int number;", "short num0 ; ", "double\nd;"];
-
-        for test in tests {
-            let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-            let id = parser.root_id();
-            assert!(parser.match_variable_define(&id));
-        }
+        run_func!(tests, match_variable_define);
     }
 
     #[ignore]
     #[test]
     fn test_variable_list() {
-        let test = "int a, b_, c;";
-        let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-        let id = parser.root_id();
-        assert!(parser.match_variable_define(&id));
+        let tests = vec!["int a, b_, c;"];
+        run_func!(tests, match_variable_define);
     }
 
     #[test]
@@ -301,20 +327,17 @@ mod test {
         let tests = vec!["struct Str { int a; short b; };",
                          "struct Str {};",
                          "\nstruct\nS\n{\nint\na\n;\n}\n;\n"];
-
-        for test in tests {
-            let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-            let id = parser.root_id();
-            assert!(parser.match_struct_define(&id));
-        }
+        run_func!(tests, match_struct_define);
 
         let tests = vec!["struct for { int a; short b; };",
                          "struct S {}"];
+        run_func!(tests, match_struct_define, false);
+    }
 
-        for test in tests {
-            let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
-            let id = parser.root_id();
-            assert!(!parser.match_struct_define(&id));
-        }
+    #[test]
+    fn test_boolean_expression() {
+        let tests = vec!["a == b",
+                         "a == b || c ^ d == 1"];
+        run_func!(tests, match_expr);
     }
 }
