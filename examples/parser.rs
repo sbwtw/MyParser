@@ -4,10 +4,6 @@ extern crate parser;
 use parser::lexer::*;
 use parser::parser::*;
 use parser::parser::recursive_descent::*;
-use parser::token::*;
-use parser::token::Token::*;
-
-use std::fs::File;
 
 fn main() {
     let src = "struct S { int a; double b; };";

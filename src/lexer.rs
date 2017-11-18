@@ -329,8 +329,7 @@ fn test_division() {
 #[cfg(test)]
 mod test {
 
-    use token::*;
-    use Lexer;
+    use lexer::*;
 
     #[test]
     fn test_comment() {

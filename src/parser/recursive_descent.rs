@@ -178,8 +178,8 @@ impl Parser for RecursiveDescentParser {
 #[cfg(test)]
 mod test {
 
-    use RecursiveDescentParser;
-    use Lexer;
+    use lexer;
+    use parser::recursive_descent::*;
 
     #[test]
     fn test_variable_define() {
