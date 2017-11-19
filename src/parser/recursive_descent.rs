@@ -15,13 +15,27 @@ use id_tree::RemoveBehavior::*;
 /// variable_define = type variable ;
 /// struct_define = struct variable { variable_define ... } ;
 ///
-/// expr = number expr_fix | variable expr_fix
+/// expr = expr_mul expr_fix
 /// expr_fix = add_op expr_mul | epsilon
 ///
 /// expr_mul = expr_factor expr_mul_fix
 /// expr_mul_fix = mul_op expr_factor | epsilon
 ///
-/// expr_factor = (expr) | single_op expr | expr
+/// expr -> expr_mul expr_fix
+///      -> expr_factor expr_mul_fix expr_fix
+///
+/// expr_factor -> expr
+///             -> expr_factor expr_mul_fix expr_fix
+///             -> expr_factor mul_op expr_factor expr_fix |
+///                expr_factor add_op expr_mul
+///
+/// expr_factor = (expr) expr_factor_fix |
+///               variable expr_factor_fix |
+///               number expr_factor_fix |
+///               mul_op expr_factor expr_fix expr_factor_fix |
+///               add_op expr_mul expr_factor_fix
+/// expr_factor_fix = add_op expr_mul expr_factor_fix | epslion
+///
 /// add_op = + | -
 /// mul_op = * | /
 /// single_op = ! | ~
@@ -160,69 +174,93 @@ impl RecursiveDescentParser {
         return false;
     }
 
-    fn match_expr(&mut self, root: &NodeId) -> Option<NodeId> {
-        let cur = self.current;
-        let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
+    // fn match_expr(&mut self, root: &NodeId) -> Option<NodeId> {
+    //     let cur = self.current;
+    //     let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
 
-        loop {
-            // expr = number expr_fix | variable expr_fix
-            if let Some(tok) = self.match_variable() {
-                insert!(self.tree, self_id, tok);
-                if self.match_expr_fix(&self_id) {
-                    return Some(self_id);
-                }
-            }
+    //     loop {
+    //         // expr = number expr_fix | variable expr_fix
+    //         if let Some(tok) = self.match_variable() {
+    //             insert!(self.tree, self_id, tok);
+    //             if self.match_expr_fix(&self_id) {
+    //                 return Some(self_id);
+    //             }
+    //         }
 
-            // number expr_fix
-            if let Some(tok) = self.match_number() {
-                insert!(self.tree, self_id, tok);
-                if self.match_expr_fix(&self_id) {
-                    return Some(self_id);
-                }
-            }
+    //         // number expr_fix
+    //         if let Some(tok) = self.match_number() {
+    //             insert!(self.tree, self_id, tok);
+    //             if self.match_expr_fix(&self_id) {
+    //                 return Some(self_id);
+    //             }
+    //         }
 
-            break;
+    //         break;
+    //     }
+
+    //     self.current = cur;
+    //     self.tree.remove_node(self_id, DropChildren).unwrap();
+    //     None
+    // }
+
+    // expr_mul expr_fix
+    fn match_expr(&mut self, root: &NodeId) -> bool {
+        println!("match expr -> {:?}", self.peek());
+        if self.match_expr_mul(root) {
+            return self.match_expr_fix(root);
         }
 
-        self.current = cur;
-        self.tree.remove_node(self_id, DropChildren).unwrap();
-        None
+        false
     }
 
     /// expr_fix = add_op expr_mul | epsilon
     fn match_expr_fix(&mut self, root: &NodeId) -> bool {
+        println!("match expr fix -> {:?}", self.peek());
 
-        if self.term(Token::Operator(Operators::Add)) {
-            insert!(self.tree, root, Token::Operator(Operators::Add));
+        if let Some(tok) = self.match_add_op() {
+            insert!(self.tree, root, tok);
+
             let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
-            return self.match_expr_mul(&self_id);
+            if !self.match_expr_mul(&self_id) {
+                self.tree.remove_node(self_id, DropChildren).unwrap();
+            }
+        }
+
+        true
+    }
+
+    fn match_add_op(&mut self) -> Option<Token> {
+        if self.term(Token::Operator(Operators::Add)) {
+            return Some(Token::Operator(Operators::Add));
         }
 
         if self.term(Token::Operator(Operators::Minus)) {
-            insert!(self.tree, root, Token::Operator(Operators::Minus));
-            let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
-            return self.match_expr_mul(&self_id);
+            return Some(Token::Operator(Operators::Minus));
         }
 
-        // for epsilon move
-        true
+        None
     }
 
     // expr_mul = expr_factor expr_mul_fix
     fn match_expr_mul(&mut self, root: &NodeId) -> bool {
-        if let Some(id) = self.match_expr_factor(root) {
-            return self.match_expr_mul_fix(&id);
+        println!("match expr mul -> {:?}", self.peek());
+        if self.match_expr_factor(root) {
+            return self.match_expr_mul_fix(root);
         }
 
-        true
+        false
     }
 
     // expr_mul_fix = mul_op expr_factor | epsilon
     fn match_expr_mul_fix(&mut self, root: &NodeId) -> bool {
+        println!("match expr mul fix -> {:?}", self.peek());
         if let Some(tok) = self.match_mul_op() {
             insert!(self.tree, root, tok);
+
             let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
-            return self.match_expr_factor(&self_id).is_some();
+            if !self.match_expr_factor(&self_id) {
+                self.tree.remove_node(self_id, DropChildren).unwrap();
+            }
         }
 
         true
@@ -240,36 +278,89 @@ impl RecursiveDescentParser {
         None
     }
 
-    // expr_factor = (expr) | single_op expr | expr
-    fn match_expr_factor(&mut self, root: &NodeId) -> Option<NodeId> {
+    /// expr_factor = (expr) expr_factor_fix |
+    ///               variable expr_factor_fix |
+    ///               number expr_factor_fix |
+    ///               mul_op expr_factor expr_fix expr_factor_fix |
+    ///               add_op expr_mul expr_factor_fix
+    fn match_expr_factor(&mut self, root: &NodeId) -> bool {
+        println!("match expr factor -> {:?}", self.peek());
         let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
 
-        // (expr) expr_fix
-        if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
-            // insert!(self.tree, self_id, Token::Bracket(Brackets::LeftParenthesis));
-            if let Some(id) = self.match_expr_without_subtree(&root) {
-                if self.term(Token::Bracket(Brackets::RightParenthesis)) {
-                    return Some(id);
+        loop {
+            // (expr) expr_fix
+            if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
+                if self.match_expr(&self_id) {
+                    if self.term(Token::Bracket(Brackets::RightParenthesis)) {
+                        return self.match_expr_factor_fix(&self_id);
+                    }
                 }
+                break;
+            }
+
+            // mul_op expr_factor expr_fix expr_factor_fix
+            if let Some(tok) = self.match_mul_op() {
+                insert!(self.tree, self_id, tok);
+
+                return self.match_expr_factor(&self_id) &&
+                       self.match_expr_fix(&self_id) &&
+                       self.match_expr_factor_fix(&self_id);
+            }
+
+            // add_op expr_mul expr_factor_fix
+            if let Some(tok) = self.match_add_op() {
+                insert!(self.tree, self_id, tok);
+
+                return self.match_expr_mul(&self_id) &&
+                       self.match_expr_factor_fix(&self_id);
+            }
+
+            // variable
+            if let Some(tok) = self.match_variable() {
+                insert!(self.tree, self_id, tok);
+                return self.match_expr_factor_fix(&self_id);
+            }
+
+            // number expr_fix
+            if let Some(tok) = self.match_number() {
+                insert!(self.tree, self_id, tok);
+                return self.match_expr_factor_fix(&self_id);
             }
         }
 
-        if let Some(id) = self.match_expr_without_subtree(root) {
-            return Some(id);
-        }
-
         self.current = cur;
-        None
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
     }
 
-    fn match_expr_without_subtree(&mut self, root: &NodeId) -> Option<NodeId> {
-        if let Some(id) = self.match_expr(&root) {
-            self.tree.remove_node(id, LiftChildren).unwrap();
-            return Some(root.clone());
+    // expr_factor_fix = add_op expr_mul expr_factor_fix | epslion
+    fn match_expr_factor_fix(&mut self, root: &NodeId) -> bool {
+        println!("match expr factor fix -> {:?}", self.peek());
+
+        if let Some(tok) = self.match_add_op() {
+            insert!(self.tree, root, tok);
+
+            let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
+            if !self.match_expr_mul(&self_id) {
+                self.tree.remove_node(self_id, DropChildren).unwrap();
+                return false;
+            }
+
+            return self.match_expr_factor_fix(root);
         }
 
-        None
+        true
     }
+
+    // fn match_expr_without_subtree(&mut self, root: &NodeId) -> Option<NodeId> {
+    //     if let Some(id) = self.match_expr(&root) {
+    //         self.tree.remove_node(id, LiftChildren).unwrap();
+    //         return Some(root.clone());
+    //     }
+
+    //     None
+    // }
 
     fn match_variable(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
@@ -306,12 +397,20 @@ impl RecursiveDescentParser {
 
         return false;
     }
+
+    fn peek<'a>(&'a self) -> Option<&'a Token> {
+        if self.current >= self.tokens.len() {
+            return None;
+        }
+
+        return Some(&self.tokens[self.current]);
+    }
 }
 
 impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
         let id = self.root_id();
-        self.match_expr(&id).is_some()
+        self.match_expr(&id)
     }
 }
 
@@ -385,6 +484,6 @@ mod test {
     fn test_boolean_expression() {
         let tests = vec!["a == b",
                          "a == b || c ^ d == 1"];
-        run_func!(tests, match_expr, Option::Some::<NodeId>(_));
+        run_func!(tests, match_expr);
     }
 }
