@@ -218,7 +218,7 @@ impl Lexer {
             Some(c) => match c {
                 b'*' => self.parse_block_comment(),
                 b'/' => self.parse_line_comment(),
-                _ => Ok(Some(Token::Operator(Operators::Dvision))),
+                _ => Ok(Some(Token::Operator(Operators::Division))),
             },
             None => return Ok(None),
         }
@@ -317,7 +317,7 @@ fn test_division() {
     );
     assert_eq!(
         Iterator::next(&mut lexer).unwrap(),
-        Token::Operator(Operators::Dvision)
+        Token::Operator(Operators::Division)
     );
     assert_eq!(
         Iterator::next(&mut lexer).unwrap(),

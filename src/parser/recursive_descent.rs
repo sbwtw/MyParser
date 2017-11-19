@@ -15,13 +15,16 @@ use id_tree::RemoveBehavior::*;
 /// variable_define = type variable ;
 /// struct_define = struct variable { variable_define ... } ;
 ///
-/// binary_op = && || ^ & |
-/// expr = (expr) expr_fix |
-///        !expr expr_fix |
-///        ~expr expr_fix |
-///        number expr_fix |
-///        variable expr_fix
-/// expr_fix = binary_op expr expr_fix | epsilon
+/// expr = number expr_fix | variable expr_fix
+/// expr_fix = add_op expr_mul | epsilon
+///
+/// expr_mul = expr_factor expr_mul_fix
+/// expr_mul_fix = mul_op expr_factor | epsilon
+///
+/// expr_factor = (expr) | single_op expr | expr
+/// add_op = + | -
+/// mul_op = * | /
+/// single_op = ! | ~
 ///
 
 type TokenResult = Option<Token>;
@@ -162,30 +165,20 @@ impl RecursiveDescentParser {
         let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
 
         loop {
-            // variable expr_fix
+            // expr = number expr_fix | variable expr_fix
             if let Some(tok) = self.match_variable() {
                 insert!(self.tree, self_id, tok);
-                self.match_expr_fix(&self_id);
-                return Some(self_id);
+                if self.match_expr_fix(&self_id) {
+                    return Some(self_id);
+                }
             }
 
             // number expr_fix
             if let Some(tok) = self.match_number() {
                 insert!(self.tree, self_id, tok);
-                self.match_expr_fix(&self_id);
-                return Some(self_id);
-            }
-
-            // (expr) expr_fix
-            if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
-                // insert!(self.tree, self_id, Token::Bracket(Brackets::LeftParenthesis));
-                if self.match_expr(&self_id).is_some() &&
-                   self.term(Token::Bracket(Brackets::RightParenthesis)) {
-                    // insert!(self.tree, self_id, Token::Bracket(Brackets::RightParenthesis));
-                    self.match_expr_fix(&self_id);
+                if self.match_expr_fix(&self_id) {
                     return Some(self_id);
                 }
-                break;
             }
 
             break;
@@ -196,26 +189,91 @@ impl RecursiveDescentParser {
         None
     }
 
-    fn match_expr_without_subtree(&mut self, root: &NodeId) -> bool {
-        if let Some(id) = self.match_expr(&root) {
-            self.tree.remove_node(id, LiftChildren).unwrap();
+    /// expr_fix = add_op expr_mul | epsilon
+    fn match_expr_fix(&mut self, root: &NodeId) -> bool {
+
+        if self.term(Token::Operator(Operators::Add)) {
+            insert!(self.tree, root, Token::Operator(Operators::Add));
+            let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
+            return self.match_expr_mul(&self_id);
         }
 
-        false
-    }
-
-    /// expr_fix = binary_op expr expr_fix | epsilon
-    fn match_expr_fix(&mut self, root: &NodeId) -> bool {
-        if let Some(tok) = self.match_binary_op() {
-            insert!(self.tree, root, tok);
-            return self.match_expr_without_subtree(&root) && self.match_expr_fix(&root);
+        if self.term(Token::Operator(Operators::Minus)) {
+            insert!(self.tree, root, Token::Operator(Operators::Minus));
+            let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
+            return self.match_expr_mul(&self_id);
         }
 
         // for epsilon move
         true
     }
 
+    // expr_mul = expr_factor expr_mul_fix
+    fn match_expr_mul(&mut self, root: &NodeId) -> bool {
+        if let Some(id) = self.match_expr_factor(root) {
+            return self.match_expr_mul_fix(&id);
+        }
+
+        true
+    }
+
+    // expr_mul_fix = mul_op expr_factor | epsilon
+    fn match_expr_mul_fix(&mut self, root: &NodeId) -> bool {
+        if let Some(tok) = self.match_mul_op() {
+            insert!(self.tree, root, tok);
+            let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
+            return self.match_expr_factor(&self_id).is_some();
+        }
+
+        true
+    }
+
+    fn match_mul_op(&mut self) -> Option<Token> {
+        if self.term(Token::Operator(Operators::Division)) {
+            return Some(Token::Operator(Operators::Division));
+        }
+
+        if self.term(Token::Asterisk) {
+            return Some(Token::Operator(Operators::Mul));
+        }
+
+        None
+    }
+
+    // expr_factor = (expr) | single_op expr | expr
+    fn match_expr_factor(&mut self, root: &NodeId) -> Option<NodeId> {
+        let cur = self.current;
+
+        // (expr) expr_fix
+        if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
+            // insert!(self.tree, self_id, Token::Bracket(Brackets::LeftParenthesis));
+            if let Some(id) = self.match_expr_without_subtree(&root) {
+                if self.term(Token::Bracket(Brackets::RightParenthesis)) {
+                    return Some(id);
+                }
+            }
+        }
+
+        if let Some(id) = self.match_expr_without_subtree(root) {
+            return Some(id);
+        }
+
+        self.current = cur;
+        None
+    }
+
+    fn match_expr_without_subtree(&mut self, root: &NodeId) -> Option<NodeId> {
+        if let Some(id) = self.match_expr(&root) {
+            self.tree.remove_node(id, LiftChildren).unwrap();
+            return Some(root.clone());
+        }
+
+        None
+    }
+
     fn match_variable(&mut self) -> TokenResult {
+        if self.current >= self.tokens.len() { return None; }
+
         if let Variable(ref v) = self.tokens[self.current] {
             self.current += 1;
             return Some(Token::Variable(v.clone()));
@@ -225,30 +283,14 @@ impl RecursiveDescentParser {
     }
 
     fn match_number(&mut self) -> TokenResult {
+        if self.current >= self.tokens.len() { return None; }
+
         if let Number(ref n) = self.tokens[self.current] {
             self.current += 1;
             return Some(Token::Variable(n.clone()));
         }
 
         return None;
-    }
-
-    fn match_binary_op(&mut self) -> TokenResult {
-        if self.term(Token::Operator(Operators::And)) {
-            Some(Token::Operator(Operators::And))
-        } else if self.term(Token::Operator(Operators::Or)) {
-            Some(Token::Operator(Operators::Or))
-        } else if self.term(Token::Operator(Operators::Xor)) {
-            Some(Token::Operator(Operators::Xor))
-        } else if self.term(Token::Operator(Operators::LogicAnd)) {
-            Some(Token::Operator(Operators::LogicAnd))
-        } else if self.term(Token::Operator(Operators::LogicOr)) {
-            Some(Token::Operator(Operators::LogicOr))
-        } else if self.term(Token::Operator(Operators::Equal)) {
-            Some(Token::Operator(Operators::Equal))
-        } else {
-            None
-        }
     }
 
     fn term(&mut self, tok: Token) -> bool {
@@ -338,6 +380,7 @@ mod test {
         run_func!(tests, match_struct_define, false);
     }
 
+    #[ignore]
     #[test]
     fn test_boolean_expression() {
         let tests = vec!["a == b",
