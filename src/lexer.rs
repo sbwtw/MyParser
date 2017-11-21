@@ -45,13 +45,15 @@ impl Lexer {
                 b'"' => self.parse_literal_str(),
                 b'&' => self.parse_and(),
                 b'|' => self.parse_or(),
+                b'>' => self.parse_greater(),
+                b'<' => self.parse_less(),
+                b'!' => self.parse_not(),
                 b';' => self.convert_char(Token::Semicolon),
                 b'*' => self.convert_char(Token::Asterisk),
                 b',' => self.convert_char(Token::Comma),
                 b'.' => self.convert_char(Token::Dot),
                 b'^' => self.convert_char(Token::Operator(Operators::Xor)),
                 b'~' => self.convert_char(Token::Operator(Operators::Not)),
-                b'!' => self.convert_char(Token::Operator(Operators::LogicNot)),
                 b'(' => self.convert_char(Token::Bracket(Brackets::LeftParenthesis)),
                 b')' => self.convert_char(Token::Bracket(Brackets::RightParenthesis)),
                 b'[' => self.convert_char(Token::Bracket(Brackets::LeftSquareBracket)),
@@ -70,6 +72,33 @@ impl Lexer {
         self.bump();
 
         Ok(Some(r))
+    }
+
+    fn parse_greater(&mut self) -> LexerResult {
+        self.bump();
+
+        return match self.peek()? {
+            Some(b'=') => self.convert_char(Token::Operator(Operators::GreaterEqual)),
+            _ => Ok(Some(Token::Operator(Operators::Greater))),
+        }
+    }
+
+    fn parse_less(&mut self) -> LexerResult {
+        self.bump();
+
+        return match self.peek()? {
+            Some(b'=') => self.convert_char(Token::Operator(Operators::LessEqual)),
+            _ => Ok(Some(Token::Operator(Operators::Less))),
+        }
+    }
+
+    fn parse_not(&mut self) -> LexerResult {
+        self.bump();
+
+        return match self.peek()? {
+            Some(b'=') => self.convert_char(Token::Operator(Operators::NotEqual)),
+            _ => Ok(Some(Token::Operator(Operators::LogicNot))),
+        }
     }
 
     fn parse_and(&mut self) -> LexerResult {
@@ -290,46 +319,61 @@ impl Lexer {
     }
 }
 
-#[test]
-fn test_key_words() {
-    let source = "if else";
-
-    let mut lexer = Lexer::new(source.as_bytes());
-    assert_eq!(
-        Iterator::next(&mut lexer).unwrap(),
-        Token::KeyWord(KeyWords::If)
-    );
-    assert_eq!(
-        Iterator::next(&mut lexer).unwrap(),
-        Token::KeyWord(KeyWords::Else)
-    );
-    assert_eq!(Iterator::next(&mut lexer), None);
-}
-
-#[test]
-fn test_division() {
-    let source = "2/3";
-
-    let mut lexer = Lexer::new(source.as_bytes());
-    assert_eq!(
-        Iterator::next(&mut lexer).unwrap(),
-        Token::Number("2".to_owned())
-    );
-    assert_eq!(
-        Iterator::next(&mut lexer).unwrap(),
-        Token::Operator(Operators::Division)
-    );
-    assert_eq!(
-        Iterator::next(&mut lexer).unwrap(),
-        Token::Number("3".to_owned())
-    );
-    assert_eq!(Iterator::next(&mut lexer), None);
-}
-
 #[cfg(test)]
 mod test {
 
     use lexer::*;
+
+    #[test]
+    fn test_key_words() {
+        let source = "if else";
+
+        let mut lexer = Lexer::new(source.as_bytes());
+        assert_eq!(
+            Iterator::next(&mut lexer).unwrap(),
+            Token::KeyWord(KeyWords::If)
+        );
+        assert_eq!(
+            Iterator::next(&mut lexer).unwrap(),
+            Token::KeyWord(KeyWords::Else)
+        );
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
+
+    #[test]
+    fn test_division() {
+        let source = "2/3";
+
+        let mut lexer = Lexer::new(source.as_bytes());
+        assert_eq!(
+            Iterator::next(&mut lexer).unwrap(),
+            Token::Number("2".to_owned())
+        );
+        assert_eq!(
+            Iterator::next(&mut lexer).unwrap(),
+            Token::Operator(Operators::Division)
+        );
+        assert_eq!(
+            Iterator::next(&mut lexer).unwrap(),
+            Token::Number("3".to_owned())
+        );
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
+
+    #[test]
+    fn test_cmp_op() {
+        let source = "> >= < <= == !=";
+        let s = source.clone();
+
+        let mut lexer = Lexer::new(s.as_bytes());
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::Greater));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::GreaterEqual));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::Less));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::LessEqual));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::Equal));
+        assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::NotEqual));
+        assert_eq!(Iterator::next(&mut lexer), None);
+    }
 
     #[test]
     fn test_comment() {

@@ -69,6 +69,10 @@ pub enum Operators {
     DoubleMinus,
     Division,
     Equal,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
     LogicAnd,
     LogicNot,
     LogicOr,
@@ -76,6 +80,7 @@ pub enum Operators {
     MinusEqual,
     Mul,
     Not,
+    NotEqual,
     Or,
     Xor,
 }
@@ -90,7 +95,7 @@ pub enum Brackets {
     RightCurlyBracket,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Arrow,
     Asterisk,

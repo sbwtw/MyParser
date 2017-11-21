@@ -293,6 +293,36 @@ impl RecursiveDescentParser {
         false
     }
 
+    // > | >= | < | <=
+    fn match_cmp_op(&mut self) -> TokenResult {
+        if self.current >= self.tokens.len() { return None; }
+
+        return match self.tokens[self.current] {
+            ref tok @ Token::Operator(Operators::Greater) |
+            ref tok @ Token::Operator(Operators::GreaterEqual) |
+            ref tok @ Token::Operator(Operators::Less) |
+            ref tok @ Token::Operator(Operators::LessEqual) => {
+                self.current += 1;
+                Some(tok.clone())
+            },
+            _ => None,
+        }
+    }
+
+    // == | !=
+    fn match_equal_op(&mut self) -> TokenResult {
+        if self.current >= self.tokens.len() { return None; }
+
+        return match self.tokens[self.current] {
+            ref tok @ Token::Operator(Operators::Equal) |
+            ref tok @ Token::Operator(Operators::NotEqual) => {
+                self.current += 1;
+                Some(tok.clone())
+            },
+            _ => None,
+        }
+    }
+
     fn match_add_op(&mut self) -> TokenResult {
         if self.term(Token::Operator(Operators::Add)) {
             return Some(Token::Operator(Operators::Add));
