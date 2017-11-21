@@ -73,6 +73,12 @@ macro_rules! insert_type {
     };
 }
 
+macro_rules! replace {
+    ($tree: expr, $root: expr, $type: expr) => {
+        $tree.get_mut($root).unwrap().replace_data($type);
+    }
+}
+
 fn print_space(indentation: usize) {
     for _ in 0..indentation { print!("  "); }
 }
@@ -258,6 +264,7 @@ impl RecursiveDescentParser {
             }
 
             if self.match_expr(&self_id) {
+                replace!(self.tree, &self_id, SyntaxType::Expr);
                 self.adjust_single_child(self_id);
                 return true;
             }
@@ -521,14 +528,6 @@ impl RecursiveDescentParser {
         if children_num == 1 {
             self.tree.remove_node(node, LiftChildren).unwrap();
         }
-
-        // {
-        //     let children = self.tree.get(&node).unwrap().children();
-        //     if children.len() != 1 { return; }
-        //     if self.tree.get(&children[0]).unwrap().children().len() != 0 { return; }
-        // }
-
-        // self.tree.remove_node(node, LiftChildren).unwrap();
     }
 
     fn term(&mut self, tok: Token) -> bool {
