@@ -10,6 +10,7 @@ pub enum SyntaxType {
     Struct,
     Variable,
     Expr,
+    BooleanExpr,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;

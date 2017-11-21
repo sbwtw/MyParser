@@ -9,9 +9,10 @@ path = "src/lib.rs"
 
 [[example]]
 name = "lexer"
-
 [[example]]
-name = "parser"
+name = "parser_struct"
+[[example]]
+name = "parser_boolean_expr"
 
 [dependencies]
 id_tree = "*"

@@ -30,6 +30,34 @@ use id_tree::RemoveBehavior::*;
 /// mul_op = * | /
 /// single_op = ! | ~
 ///
+/// bool_expr = bool_expr || bool_expr |
+///             bool_expr && bool_expr |
+///             bool_expr equal_op bool_expr |
+///             bool_expr cmp_op bool_expr |
+///             !expr |
+///             expr
+///
+/// bool_expr = bool_expr || bool_expr_and
+///          -> bool_expr_and bool_expr_fix
+/// bool_expr_fix = || bool_expr_and bool_expr_fix | epsilon
+///
+/// bool_expr_and = bool_expr_and && bool_expr_equal
+///              -> bool_expr_equal bool_expr_and_fix
+/// bool_expr_and_fix = && bool_expr_equal bool_expr_and_fix | epsilon
+///
+/// bool_expr_equal = bool_expr_equal equal_op bool_expr_cmp
+///                -> bool_expr_cmp bool_expr_equal_fix
+/// bool_expr_equal_fix = equal_op bool_expr_cmp bool_expr_equal_fix | epsilon
+///
+/// bool_expr_cmp = bool_expr_cmp cmp_op bool_expr_factor
+///              -> bool_expr_factor bool_expr_cmp_fix
+/// bool_expr_cmp_fix = cmp_op bool_expr_factor bool_expr_cmp_fix | epsilon
+///
+/// bool_expr_factor = !bool_expr | expr
+///
+/// cmp_op = > | >= | < | <=
+/// equal_op = == | !=
+///
 
 type TokenResult = Option<Token>;
 
@@ -93,6 +121,11 @@ impl RecursiveDescentParser {
     pub fn traverse_pre_order(&self) -> PreOrderTraversal<SyntaxType> {
         let ref id = self.root_id();
         self.tree.traverse_pre_order(id).unwrap()
+    }
+
+    #[cfg(debug_assertions)]
+    pub fn lexer_end(&self) -> bool {
+        self.current == self.tokens.len()
     }
 
     fn root_id(&self) -> NodeId {
@@ -307,7 +340,7 @@ impl RecursiveDescentParser {
 
         if let Number(ref n) = self.tokens[self.current] {
             self.current += 1;
-            return Some(Token::Variable(n.clone()));
+            return Some(Token::Number(n.clone()));
         }
 
         return None;
@@ -379,12 +412,12 @@ mod test {
         fn ok(&self) -> bool { self.is_ok() }
     }
 
-    macro_rules! run_func {
+    macro_rules! test_func {
         ($tests: tt, $func: ident) => {
             for test in $tests {
                 let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
                 let id = parser.root_id();
-                assert!(parser.$func(&id).ok());
+                assert!(parser.$func(&id).ok() && parser.lexer_end());
             }
         };
         ($tests: tt, $func: ident, $($r: tt)+) => {
@@ -399,14 +432,14 @@ mod test {
     #[test]
     fn test_variable_define() {
         let tests = vec!["int number;", "short num0 ; ", "double\nd;"];
-        run_func!(tests, match_variable_define);
+        test_func!(tests, match_variable_define);
     }
 
     #[ignore]
     #[test]
     fn test_variable_list() {
         let tests = vec!["int a, b_, c;"];
-        run_func!(tests, match_variable_define);
+        test_func!(tests, match_variable_define);
     }
 
     #[test]
@@ -414,18 +447,32 @@ mod test {
         let tests = vec!["struct Str { int a; short b; };",
                          "struct Str {};",
                          "\nstruct\nS\n{\nint\na\n;\n}\n;\n"];
-        run_func!(tests, match_struct_define);
+        test_func!(tests, match_struct_define);
 
         let tests = vec!["struct for { int a; short b; };",
                          "struct S {}"];
-        run_func!(tests, match_struct_define, false);
+        test_func!(tests, match_struct_define, false);
+    }
+
+    #[test]
+    fn test_experssion() {
+        let tests = vec!["num1 + num2 * 1",
+                         "(3)",
+                         "3",
+                         "num1 + num2",
+                         "(3)+1",
+                         "2 - 4 + 3*2",
+                        //  "3 ^ 2",
+                        //  "3 % num",
+                         "2-((4)*(2))"];
+        test_func!(tests, match_expr);
     }
 
     #[ignore]
     #[test]
     fn test_boolean_expression() {
         let tests = vec!["a == b",
-                         "a == b || c ^ d == 1"];
-        run_func!(tests, match_expr);
+                         "a == b || c + d == 1"];
+        test_func!(tests, match_expr);
     }
 }
