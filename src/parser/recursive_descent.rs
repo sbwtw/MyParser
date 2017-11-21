@@ -86,8 +86,13 @@ impl RecursiveDescentParser {
     }
 
     pub fn dump(&self) {
-        let id = self.root_id();
-        dump_tree(&self.tree, &id, 0);
+        let ref id = self.root_id();
+        dump_tree(&self.tree, id, 0);
+    }
+
+    pub fn traverse_pre_order(&self) -> PreOrderTraversal<SyntaxType> {
+        let ref id = self.root_id();
+        self.tree.traverse_pre_order(id).unwrap()
     }
 
     fn root_id(&self) -> NodeId {
@@ -184,7 +189,12 @@ impl RecursiveDescentParser {
                 self.tree.remove_node(self_id, DropChildren).unwrap();
                 return false;
             }
-            return self.match_expr_fix(root);
+            if self.match_expr_fix(root) {
+                self.adjust_single_child(self_id);
+                return true;
+            } else {
+                return false;
+            }
         }
 
         true
@@ -210,7 +220,12 @@ impl RecursiveDescentParser {
                 self.tree.remove_node(self_id, DropChildren).unwrap();
                 return false;
             }
-            return self.match_expr_mul_fix(root);
+            if self.match_expr_mul_fix(root) {
+                self.adjust_single_child(self_id);
+                return true;
+            } else {
+                return false;
+            }
         }
 
         true
@@ -298,6 +313,15 @@ impl RecursiveDescentParser {
         return None;
     }
 
+    fn adjust_single_child(&mut self, node: NodeId) {
+        let children_num = self.tree.children(&node).unwrap().count();
+        assert!(children_num > 0);
+
+        if children_num == 1 {
+            self.tree.remove_node(node, LiftChildren).unwrap();
+        }
+    }
+
     fn term(&mut self, tok: Token) -> bool {
 
         if self.current >= self.tokens.len() {
@@ -325,6 +349,10 @@ impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
         let id = self.root_id();
         self.match_expr(&id)
+    }
+
+    fn syntax_tree(&self) -> &SyntaxTree {
+        &self.tree
     }
 }
 
