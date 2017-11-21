@@ -143,13 +143,16 @@ impl RecursiveDescentParser {
     fn match_bool_expr_fix(&mut self, root: &NodeId) -> bool {
         if self.term(Token::Operator(Operators::LogicOr)) {
             let id = insert!(self.tree, root, Token::Operator(Operators::LogicOr));
+            let root_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
 
-            if self.match_bool_expr_and(root) &&
-               self.match_bool_expr_fix(root) {
+            if self.match_bool_expr_and(&root_id) &&
+               self.match_bool_expr_fix(&root_id) {
+                self.adjust_single_child(root_id);
                 return true;
             }
 
             self.tree.remove_node(id, DropChildren).unwrap();
+            self.tree.remove_node(root_id, DropChildren).unwrap();
             return false;
         }
 
@@ -167,13 +170,16 @@ impl RecursiveDescentParser {
     fn match_bool_expr_and_fix(&mut self, root: &NodeId) -> bool {
         if self.term(Token::Operator(Operators::LogicAnd)) {
             let id = insert!(self.tree, root, Token::Operator(Operators::LogicAnd));
+            let root_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
 
-            if self.match_bool_expr_equal(root) &&
-               self.match_bool_expr_and_fix(root) {
+            if self.match_bool_expr_equal(&root_id) &&
+               self.match_bool_expr_and_fix(&root_id) {
+                self.adjust_single_child(root_id);
                 return true;
             }
 
             self.tree.remove_node(id, DropChildren).unwrap();
+            self.tree.remove_node(root_id, DropChildren).unwrap();
             return false;
         }
 
@@ -231,31 +237,36 @@ impl RecursiveDescentParser {
     /// bool_expr_factor = !bool_expr | (bool_expr) | expr
     fn match_bool_expr_factor(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
 
         loop {
             if self.term(Token::Operator(Operators::LogicNot)) {
-                let id = insert!(self.tree, root, Token::Operator(Operators::LogicNot));
-                if self.match_bool_expr(root) {
+                insert!(self.tree, &self_id, Token::Operator(Operators::LogicNot));
+                if self.match_bool_expr(&self_id) {
                     return true;
                 }
-
-                self.tree.remove_node(id, DropChildren).unwrap();
                 break;
             }
 
             if self.term(Token::Bracket(Brackets::LeftParenthesis)) {
-                if self.match_bool_expr(root) &&
+                if self.match_bool_expr(&self_id) &&
                    self.term(Token::Bracket(Brackets::RightParenthesis)) {
+                    self.adjust_single_child(self_id);
                     return true;
                 }
-
                 break;
             }
 
-            return self.match_expr(root);
+            if self.match_expr(&self_id) {
+                self.adjust_single_child(self_id);
+                return true;
+            }
+
+            break;
         }
 
         self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
         false
     }
 
@@ -510,6 +521,14 @@ impl RecursiveDescentParser {
         if children_num == 1 {
             self.tree.remove_node(node, LiftChildren).unwrap();
         }
+
+        // {
+        //     let children = self.tree.get(&node).unwrap().children();
+        //     if children.len() != 1 { return; }
+        //     if self.tree.get(&children[0]).unwrap().children().len() != 0 { return; }
+        // }
+
+        // self.tree.remove_node(node, LiftChildren).unwrap();
     }
 
     fn term(&mut self, tok: Token) -> bool {
@@ -625,11 +644,13 @@ mod test {
         test_func!(tests, match_expr);
     }
 
-    #[ignore]
     #[test]
     fn test_boolean_expression() {
         let tests = vec!["a == b",
+                         "a == b || c + d == 1",
+                         "a+b!=c+d||e", // error
+                        //  "a+b!=c+d||(e+f) && (d=1||f=2)",
                          "a == b || c + d == 1"];
-        test_func!(tests, match_expr);
+        test_func!(tests, match_bool_expr);
     }
 }
