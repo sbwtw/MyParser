@@ -131,7 +131,7 @@ impl RecursiveDescentParser {
 
     #[cfg(debug_assertions)]
     pub fn lexer_end(&self) -> bool {
-        self.current == self.tokens.len()
+        matches!(self.current == self.tokens.len(), true)
     }
 
     fn root_id(&self) -> NodeId {
@@ -551,6 +551,8 @@ impl RecursiveDescentParser {
         return false;
     }
 
+    #[allow(dead_code)]
+    #[cfg(debug_assertions)]
     fn peek<'a>(&'a self) -> Option<&'a Token> {
         if self.current >= self.tokens.len() {
             return None;
@@ -562,8 +564,10 @@ impl RecursiveDescentParser {
 
 impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
-        let id = self.root_id();
-        self.match_bool_expr(&id)
+        let ref id = self.root_id();
+
+        self.match_bool_expr(id) ||
+        self.match_struct_define(id)
     }
 
     fn syntax_tree(&self) -> &SyntaxTree {
@@ -576,8 +580,6 @@ mod test {
 
     use parser::recursive_descent::*;
     use parser::syntax_node::SyntaxType::*;
-
-    use id_tree::NodeId;
 
     trait TestResult {
         fn ok(&self) -> bool;
@@ -672,6 +674,7 @@ mod test {
         test_func!(tests, match_bool_expr);
 
         let test = "a + b != c + 1 || !e";
+        let test1 = "(a+b)!=(c+1)||!(e)";
         let result = vec![
             SyntaxTree,
               Expr,
@@ -689,5 +692,6 @@ mod test {
                 Terminal(Token::Variable("e".to_owned()))];
 
         test_tree!(test, match_bool_expr, result);
+        test_tree!(test1, match_bool_expr, result);
     }
 }

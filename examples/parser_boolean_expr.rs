@@ -13,8 +13,4 @@ fn main() {
 
     parser.run();
     parser.dump();
-
-    for it in parser.traverse_pre_order() {
-        println!("{:?}", it.data());
-    }
 }
