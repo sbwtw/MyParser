@@ -8,7 +8,7 @@ pub enum SyntaxType {
     Terminal(Token),
     SyntaxTree,
     Struct,
-    Variable,
+    VariableDefine,
     Expr,
     BooleanExpr,
 }

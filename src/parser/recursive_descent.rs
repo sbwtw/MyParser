@@ -117,7 +117,7 @@ impl RecursiveDescentParser {
         tree.insert(root_node, AsRoot).unwrap();
 
         RecursiveDescentParser {
-            tokens: lexer.collect(),
+            tokens: lexer.filter(|x| !matches!(x, &Token::Comment(_))).collect(),
             current: 0,
             tree: tree,
         }
@@ -135,7 +135,7 @@ impl RecursiveDescentParser {
 
     #[cfg(debug_assertions)]
     pub fn lexer_end(&self) -> bool {
-        matches!(self.current == self.tokens.len(), true)
+        self.current == self.tokens.len()
     }
 
     fn root_id(&self) -> NodeId {
@@ -296,7 +296,7 @@ impl RecursiveDescentParser {
     // variable_define = type variable_list ;
     fn match_variable_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
-        let self_id = insert_type!(self.tree, root, SyntaxType::Variable);
+        let self_id = insert_type!(self.tree, root, SyntaxType::VariableDefine);
 
         if let Some(t) = self.match_type() {
             insert!(self.tree, self_id, t);
@@ -576,9 +576,16 @@ impl RecursiveDescentParser {
 impl Parser for RecursiveDescentParser {
     fn run(&mut self) -> bool {
         let ref id = self.root_id();
+        let mut last_pos = self.tokens.len();
 
-        self.match_bool_expr(id) ||
-        self.match_struct_define(id)
+        loop {
+            if self.current == self.tokens.len() { return true; }
+            if self.current == last_pos { return false; }
+            last_pos = self.current;
+
+            self.match_bool_expr(id);
+            self.match_struct_define(id);
+        }
     }
 
     fn syntax_tree(&self) -> &SyntaxTree {

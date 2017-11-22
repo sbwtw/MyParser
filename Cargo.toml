@@ -13,6 +13,8 @@ name = "lexer"
 name = "parser_struct"
 [[example]]
 name = "parser_boolean_expr"
+[[example]]
+name = "parser_test_c"
 
 [dependencies]
 id_tree = "*"
