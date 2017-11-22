@@ -110,7 +110,7 @@ pub enum Token {
     Preprocessor(String),
     Space,
     Semicolon,
-    Variable(String),
+    Identifier(String),
 }
 
 pub fn is_keywords(s: &str) -> bool {
@@ -122,8 +122,8 @@ impl Token {
         Token::Comment(c.to_owned())
     }
 
-    pub fn variable(v: &str) -> Token {
-        Token::Variable(v.to_owned())
+    pub fn ident(v: &str) -> Token {
+        Token::Identifier(v.to_owned())
     }
 
     pub fn key_word(k: &str) -> Token {
@@ -226,7 +226,7 @@ impl Display for Token {
             &Token::KeyWord(ref k) => write!(f, "keywords:\t {:?}", k),
             &Token::Operator(ref o) => write!(f, "operators:\t {:?}", o),
             &Token::Preprocessor(ref p) => write!(f, "preprocessor:\t {}", p),
-            &Token::Variable(ref v) => write!(f, "variable:\t {}", v),
+            &Token::Identifier(ref v) => write!(f, "ident:\t {}", v),
         }
     }
 }

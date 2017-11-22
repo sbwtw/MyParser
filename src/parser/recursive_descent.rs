@@ -12,7 +12,8 @@ use id_tree::RemoveBehavior::*;
 ///
 /// variable = ...
 /// type = char | short | ...
-/// variable_define = type variable ;
+/// variable_define = type variable_list ;
+/// variable_list = variable | variable , variable_list
 /// struct_define = struct variable { variable_define ... } ;
 ///
 /// expr = expr add_op expr_mul
@@ -57,6 +58,9 @@ use id_tree::RemoveBehavior::*;
 ///
 /// cmp_op = > | >= | < | <=
 /// equal_op = == | !=
+///
+/// func_declare = type variable (argument_list) ;
+/// argument_list = argument | argument , argument_list
 ///
 
 type TokenResult = Option<Token>;
@@ -289,6 +293,7 @@ impl RecursiveDescentParser {
         return None;
     }
 
+    // variable_define = type variable_list ;
     fn match_variable_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::Variable);
@@ -296,13 +301,9 @@ impl RecursiveDescentParser {
         if let Some(t) = self.match_type() {
             insert!(self.tree, self_id, t);
 
-            if let Some(v) = self.match_variable() {
-                insert!(self.tree, self_id, v);
-
-                if self.term(Token::Semicolon) {
-                    insert!(self.tree, self_id, Token::Semicolon);
-                    return true;
-                }
+            if self.match_variable_list(&self_id) &&
+               self.term(Token::Semicolon) {
+                return true;
             }
         }
 
@@ -311,24 +312,31 @@ impl RecursiveDescentParser {
         return false;
     }
 
+    // variable_list = variable | variable , variable_list
+    fn match_variable_list(&mut self, root: &NodeId) -> bool {
+        if let Some(v) = self.match_identifier() {
+            insert!(self.tree, root, v);
+        }
+
+        if self.term(Token::Comma) {
+            self.match_variable_list(root)
+        } else {
+            true
+        }
+    }
+
     fn match_struct_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::Struct);
 
         loop {
             if !self.term(Token::KeyWord(KeyWords::Struct)) { break; }
-            insert!(self.tree, self_id, Token::KeyWord(KeyWords::Struct));
 
-            match &self.tokens[self.current] {
-                &Token::Variable(ref v) => {
-                    self.current += 1;
-                    insert!(self.tree, self_id, Token::Variable(v.clone()));
-                },
-                _ => {},
+            if let Some(v) = self.match_identifier() {
+                insert!(self.tree, self_id, v);
             }
 
             if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) { break; }
-            insert!(self.tree, self_id, Token::Bracket(Brackets::LeftCurlyBracket));
 
             while self.match_variable_define(&self_id) { }
 
@@ -336,8 +344,6 @@ impl RecursiveDescentParser {
                !self.term(Token::Semicolon) {
                 break;
             }
-            insert!(self.tree, self_id, Token::Bracket(Brackets::RightCurlyBracket));
-            insert!(self.tree, self_id, Token::Semicolon);
 
             return true;
         }
@@ -433,7 +439,7 @@ impl RecursiveDescentParser {
             }
 
             // ident
-            if let Some(tok) = self.match_ident() {
+            if let Some(tok) = self.match_expr_ident() {
                 insert!(self.tree, root, tok);
                 return true;
             }
@@ -444,6 +450,11 @@ impl RecursiveDescentParser {
         self.current = cur;
         false
     }
+
+    // func_declare = type variable (argument_list) ;
+    // fn match_function_declare(&mut self, root: &NodeId) -> bool {
+        // false
+    // }
 
     // > | >= | < | <=
     fn match_cmp_op(&mut self) -> TokenResult {
@@ -499,19 +510,19 @@ impl RecursiveDescentParser {
         None
     }
 
-    fn match_ident(&mut self) -> TokenResult {
-        if let Some(t) = self.match_variable() { return Some(t); }
+    fn match_expr_ident(&mut self) -> TokenResult {
+        if let Some(t) = self.match_identifier() { return Some(t); }
         if let Some(t) = self.match_number() { return Some(t); }
 
         None
     }
 
-    fn match_variable(&mut self) -> TokenResult {
+    fn match_identifier(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
 
-        if let Variable(ref v) = self.tokens[self.current] {
+        if let Identifier(ref v) = self.tokens[self.current] {
             self.current += 1;
-            return Some(Token::Variable(v.clone()));
+            return Some(Token::Identifier(v.clone()));
         }
 
         return None;
@@ -630,7 +641,6 @@ mod test {
         test_func!(tests, match_variable_define);
     }
 
-    #[ignore]
     #[test]
     fn test_variable_list() {
         let tests = vec!["int a, b_, c;"];
@@ -678,18 +688,18 @@ mod test {
         let result = vec![
             SyntaxTree,
               Expr,
-                Terminal(Token::Variable("a".to_owned())),
+                Terminal(Token::Identifier("a".to_owned())),
                 Terminal(Token::Operator(Operators::Add)),
-                Terminal(Token::Variable("b".to_owned())),
+                Terminal(Token::Identifier("b".to_owned())),
               Terminal(Token::Operator(Operators::NotEqual)),
               Expr,
-                Terminal(Token::Variable("c".to_owned())),
+                Terminal(Token::Identifier("c".to_owned())),
                 Terminal(Token::Operator(Operators::Add)),
                 Terminal(Token::Number("1".to_owned())),
               Terminal(Token::Operator(Operators::LogicOr)),
               BooleanExpr,
                 Terminal(Token::Operator(Operators::LogicNot)),
-                Terminal(Token::Variable("e".to_owned()))];
+                Terminal(Token::Identifier("e".to_owned()))];
 
         test_tree!(test, match_bool_expr, result);
         test_tree!(test1, match_bool_expr, result);
