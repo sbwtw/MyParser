@@ -3,7 +3,7 @@ use token::Token;
 
 use id_tree::Tree;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum SyntaxType {
     Terminal(Token),
     SyntaxTree,

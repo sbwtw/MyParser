@@ -359,23 +359,30 @@ impl RecursiveDescentParser {
 
     /// expr_fix = add_op expt_mul expr_fix | epsilon
     fn match_expr_fix(&mut self, root: &NodeId) -> bool {
-        if let Some(tok) = self.match_add_op() {
-            insert!(self.tree, root, tok);
+        let cur = self.current;
 
-            let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
-            if !self.match_expr_mul(&self_id) {
+        loop {
+            if let Some(tok) = self.match_add_op() {
+                let id = insert!(self.tree, root, tok);
+
+                let self_id = insert_type!(self.tree, root, SyntaxType::Expr);
+                if self.match_expr_mul(&self_id) {
+                    if self.match_expr_fix(&self_id) {
+                        self.adjust_single_child(self_id);
+                        return true;
+                    }
+                }
+
                 self.tree.remove_node(self_id, DropChildren).unwrap();
-                return false;
+                self.tree.remove_node(id, DropChildren).unwrap();
+                break;
             }
-            if self.match_expr_fix(root) {
-                self.adjust_single_child(self_id);
-                return true;
-            } else {
-                return false;
-            }
+
+            return true;
         }
 
-        true
+        self.current = cur;
+        false
     }
 
     /// expr_mul = expr_mul mul_op expr_factor
@@ -568,6 +575,7 @@ impl Parser for RecursiveDescentParser {
 mod test {
 
     use parser::recursive_descent::*;
+    use parser::syntax_node::SyntaxType::*;
 
     use id_tree::NodeId;
 
@@ -604,6 +612,16 @@ mod test {
         };
     }
 
+    macro_rules! test_tree {
+        ($test: tt, $func: ident, $tree: tt) => {
+            let mut parser = RecursiveDescentParser::new(Lexer::new($test.as_bytes()));
+            let id = parser.root_id();
+
+            assert!(parser.$func(&id));
+            assert!(parser.traverse_pre_order().map(|x| x.data()).eq($tree.iter()));
+        }
+    }
+
     #[test]
     fn test_variable_define() {
         let tests = vec!["int number;", "short num0 ; ", "double\nd;"];
@@ -635,8 +653,9 @@ mod test {
                          "(3)",
                          "3",
                          "num1 + num2",
+                         "(e+f)",
                          "(3)+1",
-                         "2 - 4 + 3*2",
+                         "2 \n- \t4 +\n 3\n *\n2",
                         //  "3 ^ 2",
                         //  "3 % num",
                          "2-((4)*(2))"];
@@ -647,9 +666,28 @@ mod test {
     fn test_boolean_expression() {
         let tests = vec!["a == b",
                          "a == b || c + d == 1",
-                         "a+b!=c+d||e", // error
-                        //  "a+b!=c+d||(e+f) && (d=1||f=2)",
+                         "a+b!=c+d||(e+f) && (d==1||f==2)",
+                         "a&&b\n  ||c&&!d\t||\n   !\t\n!e||f\t+\n1==3",
                          "a == b || c + d == 1"];
         test_func!(tests, match_bool_expr);
+
+        let test = "a + b != c + 1 || !e";
+        let result = vec![
+            SyntaxTree,
+              Expr,
+                Terminal(Token::Variable("a".to_owned())),
+                Terminal(Token::Operator(Operators::Add)),
+                Terminal(Token::Variable("b".to_owned())),
+              Terminal(Token::Operator(Operators::NotEqual)),
+              Expr,
+                Terminal(Token::Variable("c".to_owned())),
+                Terminal(Token::Operator(Operators::Add)),
+                Terminal(Token::Number("1".to_owned())),
+              Terminal(Token::Operator(Operators::LogicOr)),
+              BooleanExpr,
+                Terminal(Token::Operator(Operators::LogicNot)),
+                Terminal(Token::Variable("e".to_owned()))];
+
+        test_tree!(test, match_bool_expr, result);
     }
 }
