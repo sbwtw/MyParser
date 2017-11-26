@@ -15,6 +15,9 @@ name = "parser_struct"
 name = "parser_boolean_expr"
 [[example]]
 name = "parser_test_c"
+[[example]]
+name = "clint"
+path = "examples/programs/clint.rs"
 
 [dependencies]
 id_tree = "*"
