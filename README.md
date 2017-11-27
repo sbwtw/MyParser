@@ -84,133 +84,135 @@ short, int, long, unsigned, ...
 ```
 
 ### 标识符
-- number = \d+
-- identifier = [a-z][a-z|0-9]*
-- ident = number | identifier
+- number = `\d+`
+- identifier = `[a-z][a-z|0-9]*`
+- ident = `number` | `identifier`
 
 ### 表达式
 - expr:
-    - expr add_op expr_mul
-    - => expr_mul expr_fix （消除左递归后的产生式，下同）
+    - `expr` `add_op` `expr_mul`
+    - => `expr_mul` `expr_fix` （消除左递归后的产生式，下同）
 - expr_fix:
-    - add_op expr_mul expr_fix | epsilon
+    - `add_op` `expr_mul` `expr_fix` | `epsilon`
 
 - expr_mul:
-    - expr_mul mul_op expr_factor
-    - => expr_factor expr_mul_fix
-- expr_mul_fix = mul_op expr_factor expr_mul_fix | epsilon
+    - `expr_mul` `mul_op` `expr_factor`
+    - => `expr_factor` `expr_mul_fix`
+- expr_mul_fix = `mul_op` `expr_factor` `expr_mul_fix` | `epsilon`
 
-- expr_factor = ( expr ) | ident
+- expr_factor = `(` `expr` `)` | `ident`
 
 > 引入的 Tokens
-- add_op = + | -
-- mul_op = * | /
-- single_op = ! | ~
+- add_op = `+` | `-`
+- mul_op = `*` | `/`
+- single_op = `!` | `~`
 
 #### 布尔表达式
 > 原始定义
 - bool_expr:
-    - bool_expr || bool_expr
-    - bool_expr && bool_expr
-    - bool_expr equal_op bool_expr
-    - bool_expr cmp_op bool_expr
-    - !expr
-    - expr
+    - `bool_expr` `||` `bool_expr`
+    - `bool_expr` `&&` `bool_expr`
+    - `bool_expr` `equal_op` `bool_expr`
+    - `bool_expr` `cmp_op` `bool_expr`
+    - `!` `expr`
+    - `expr`
 
 > 消除左递归及添加优先级后的定义
 - bool_expr:
-    - bool_expr || bool_expr_and
-    - => bool_expr_and bool_expr_fix
+    - `bool_expr` `||` `bool_expr_and`
+    - => `bool_expr_and` `bool_expr_fix`
 - bool_expr_fix:
-    - || bool_expr_and bool_expr_fix | epsilon
+    - `||` `bool_expr_and` `bool_expr_fix` | `epsilon`
 
 - bool_expr_and:
-    - bool_expr_and && bool_expr_equal
-    - => bool_expr_equal bool_expr_and_fix
+    - `bool_expr_and` `&&` `bool_expr_equal`
+    - => `bool_expr_equal` `bool_expr_and_fix`
 - bool_expr_and_fix:
-    - && bool_expr_equal bool_expr_and_fix | epsilon
+    - `&&` `bool_expr_equal` `bool_expr_and_fix` | `epsilon`
 
 - bool_expr_equal:
-    - bool_expr_equal equal_op bool_expr_cmp
-    - => bool_expr_cmp bool_expr_equal_fix
+    - `bool_expr_equal` `equal_op` `bool_expr_cmp`
+    - => `bool_expr_cmp` `bool_expr_equal_fix`
 - bool_expr_equal_fix:
-    - equal_op bool_expr_cmp bool_expr_equal_fix | epsilon
+    - `equal_op` `bool_expr_cmp` `bool_expr_equal_fix` | `epsilon`
 
 - bool_expr_cmp:
-    - bool_expr_cmp cmp_op bool_expr_factor
-    - => bool_expr_factor bool_expr_cmp_fix
+    - `bool_expr_cmp` `cmp_op` `bool_expr_factor`
+    - => `bool_expr_factor` `bool_expr_cmp_fix`
 - bool_expr_cmp_fix:
-    - cmp_op bool_expr_factor bool_expr_cmp_fix | epsilon
+    - `cmp_op` `bool_expr_factor` `bool_expr_cmp_fix` | `epsilon`
 
 - bool_expr_factor:
-    - !bool_expr
-    - ( bool_expr )
-    - expr
+    - `!` `bool_expr`
+    - `(` `bool_expr` `)`
+    - `expr`
 
 > 引入的 Tokens
 - cmp_op:
-    - \>
-    - \>=
-    - <
-    - <=
+    - `>`
+    - `>=`
+    - `<`
+    - `<=`
 - equal_op:
-    - ==
-    - !=
+    - `==`
+    - `!=`
 
 ### 语句
 - stmt:
-    - assign_stmt
+    - `assign_stmt`
 
 - assign_stmt:
-    - left_value = right_value ;
+    - `left_value` `=` `right_value` `;`
 
 - if_stmt:
-    - if ( bool_expr ) stmt else stmt
+    - `if` `(` `bool_expr` `)` `stmt` `else` `stmt`
 
-- left_value = identifier
-- right_value = bool_expr
+- left_value:
+    - `identifier`
+- right_value:
+    - `bool_expr`
 
 ### 声明 & 定义
 #### 变量定义
 - variable_define:
-    - variable_type variable_def_list
+    - `variable_type` `variable_def_list`
 
 - variable_def_list:
-    - identifier ;
-    - identifier , variable_def_list
+    - `identifier` `;`
+    - `identifier` `,` `variable_def_list`
 
 - variable_type:
-    - variable_prefix variable_suffix
-    - float
-    - double
+    - `variable_prefix` `variable_suffix`
+    - `float`
+    - `double`
 
 - variable_prefix:
-    - unsigned
-    - signed
-    - long
-    - long long
+    - `unsigned`
+    - `signed`
+    - `long`
+    - `long long`
 
 - variable_suffix:
-    - int
+    - `int`
 
 #### 函数声明
 - func_declare:
-    - type identifier ( arg_list ) ;
+    - `type` `identifier` `(` `arg_list` `)` `;`
 
 - arg_list:
-    - arg
-    - arg , arg_list
-    - epsilon
+    - `arg`
+    - `arg` `,` `arg_list`
+    - `epsilon`
 
 #### 结构体定义
 - struct_define:
-    - struct { struct_vars } ;
-    - struct identifier { struct_vars } ;
+    - `struct` `{` `struct_vars` `}` `;`
+    - `struct` `identifier` `{` `struct_vars` `}` `;`
 
 - struct_vars
-    - struct_var
-    - struct_var ; struct_var
-    - epsilon
+    - `struct_var` `;`
+    - `struct_var` `struct_vars`
+    - `epsilon`
 
 - struct_var
-    - variable_define
+    - `variable_define`
