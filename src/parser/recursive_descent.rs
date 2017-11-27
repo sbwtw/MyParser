@@ -9,69 +9,6 @@ use id_tree::*;
 use id_tree::InsertBehavior::*;
 use id_tree::RemoveBehavior::*;
 
-///
-/// variable = ...
-/// type = char | short | ...
-/// variable_define = type variable_list ;
-/// variable_list = variable | variable , variable_list
-/// struct_define = struct variable { variable_define ... } ;
-///
-/// expr = expr add_op expr_mul
-///     -> expr_mul expr_fix
-/// expr_fix = add_op expt_mul expr_fix | epsilon
-///
-/// expr_mul = expr_mul mul_op expr_factor
-///         -> expr_factor expr_mul_fix
-/// expr_mul_fix = mul_op expr_factor expr_mul_fix | epsilon
-///
-/// expr_factor = (expr) | ident
-///
-/// ident = number | variable
-/// add_op = + | -
-/// mul_op = * | /
-/// single_op = ! | ~
-///
-/// bool_expr = bool_expr || bool_expr |
-///             bool_expr && bool_expr |
-///             bool_expr equal_op bool_expr |
-///             bool_expr cmp_op bool_expr |
-///             !expr |
-///             expr
-///
-/// bool_expr = bool_expr || bool_expr_and
-///          -> bool_expr_and bool_expr_fix
-/// bool_expr_fix = || bool_expr_and bool_expr_fix | epsilon
-///
-/// bool_expr_and = bool_expr_and && bool_expr_equal
-///              -> bool_expr_equal bool_expr_and_fix
-/// bool_expr_and_fix = && bool_expr_equal bool_expr_and_fix | epsilon
-///
-/// bool_expr_equal = bool_expr_equal equal_op bool_expr_cmp
-///                -> bool_expr_cmp bool_expr_equal_fix
-/// bool_expr_equal_fix = equal_op bool_expr_cmp bool_expr_equal_fix | epsilon
-///
-/// bool_expr_cmp = bool_expr_cmp cmp_op bool_expr_factor
-///              -> bool_expr_factor bool_expr_cmp_fix
-/// bool_expr_cmp_fix = cmp_op bool_expr_factor bool_expr_cmp_fix | epsilon
-///
-/// bool_expr_factor = !bool_expr | (bool_expr) | expr
-///
-/// cmp_op = > | >= | < | <=
-/// equal_op = == | !=
-///
-/// func_declare = type variable (argument_list) ;
-/// argument_list = argument | argument , argument_list
-///
-/// stmt = assign_stmt
-///
-/// if_stmt = if ( bool_expr ) stmt else stmt
-///
-/// assign_stmt = left_value = right_value ;
-///
-/// left_value = variable
-/// right_value = bool_expr
-///
-
 type TokenResult = Option<Token>;
 
 macro_rules! insert {
