@@ -6,7 +6,7 @@ use parser::parser::*;
 use parser::parser::recursive_descent::*;
 
 fn main() {
-    let src = "a + b != c + d || !e";
+    let src = "a + b != c + 1 || !e";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
 
     println!("\n{}\n", src);

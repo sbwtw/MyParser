@@ -596,6 +596,9 @@ impl Parser for RecursiveDescentParser {
 #[cfg(test)]
 mod test {
 
+    use id_tree::Tree;
+    use id_tree::InsertBehavior::*;
+
     use parser::recursive_descent::*;
     use parser::syntax_node::SyntaxType::*;
 
@@ -633,12 +636,35 @@ mod test {
     }
 
     macro_rules! test_tree {
-        ($test: tt, $func: ident, $tree: tt) => {
+        ($test: tt, $func: ident, $tree: ident) => {
             let mut parser = RecursiveDescentParser::new(Lexer::new($test.as_bytes()));
             let id = parser.root_id();
 
+            let tree_root_id = $tree.root_node_id().unwrap();
+
             assert!(parser.$func(&id));
-            assert!(parser.traverse_pre_order().map(|x| x.data()).eq($tree.iter()));
+            assert_eq!(parser.syntax_tree().height(), $tree.height());
+
+            let tree_iter = $tree.traverse_pre_order(tree_root_id).unwrap();
+            let parser_iter = parser.traverse_pre_order();
+            assert_eq!(tree_iter.count(), parser_iter.count());
+
+            let tree_iter = $tree.traverse_pre_order(tree_root_id).unwrap();
+            let parser_iter = parser.traverse_pre_order();
+            for (node1, node2) in tree_iter.zip(parser_iter) {
+                assert_eq!(node1.data(), node2.data());
+                assert_eq!(node1.children().len(), node2.children().len());
+            }
+        }
+    }
+
+    macro_rules! tree {
+        () => {
+            {
+            let mut tree = Tree::new();
+            let root_id = tree.insert(Node::new(SyntaxType::SyntaxTree), AsRoot).unwrap();
+            (tree, root_id)
+            }
         }
     }
 
@@ -692,23 +718,23 @@ mod test {
 
         let test = "a + b != c + 1 || !e";
         let test1 = "(a+b)!=(c+1)||!(e)";
-        let result = vec![
-            SyntaxTree,
-              Expr,
-                Terminal(Token::Identifier("a".to_owned())),
-                Terminal(Token::Operator(Operators::Add)),
-                Terminal(Token::Identifier("b".to_owned())),
-              Terminal(Token::Operator(Operators::NotEqual)),
-              Expr,
-                Terminal(Token::Identifier("c".to_owned())),
-                Terminal(Token::Operator(Operators::Add)),
-                Terminal(Token::Number("1".to_owned())),
-              Terminal(Token::Operator(Operators::LogicOr)),
-              BooleanExpr,
-                Terminal(Token::Operator(Operators::LogicNot)),
-                Terminal(Token::Identifier("e".to_owned()))];
+        let (mut tree, root_id) = tree!();
+        let expr = insert_type!(tree, root_id, Expr);
+            insert!(tree, expr, Token::Identifier("a".to_owned()));
+            insert!(tree, expr, Token::Operator(Operators::Add));
+            insert!(tree, expr, Token::Identifier("b".to_owned()));
+        insert!(tree, root_id, Token::Operator(Operators::NotEqual));
+        let expr = insert_type!(tree, root_id, Expr);
+            insert!(tree, expr, Token::Identifier("c".to_owned()));
+            insert!(tree, expr, Token::Operator(Operators::Add));
+            insert!(tree, expr, Token::Number("1".to_owned()));
+        insert!(tree, root_id, Token::Operator(Operators::LogicOr));
+        let bool_expr = insert_type!(tree, root_id, BooleanExpr);
+            insert!(tree, bool_expr, Token::Operator(Operators::LogicNot));
+            insert!(tree, bool_expr, Token::Identifier("e".to_owned()));
 
-        test_tree!(test, match_bool_expr, result);
-        test_tree!(test1, match_bool_expr, result);
+
+        test_tree!(test, match_bool_expr, tree);
+        test_tree!(test1, match_bool_expr, tree);
     }
 }
