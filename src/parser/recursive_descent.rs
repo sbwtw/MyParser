@@ -62,6 +62,11 @@ use id_tree::RemoveBehavior::*;
 /// func_declare = type variable (argument_list) ;
 /// argument_list = argument | argument , argument_list
 ///
+/// assign_stmt = left_value = right_value ;
+///
+/// left_value = variable
+/// right_value = bool_expr
+///
 
 type TokenResult = Option<Token>;
 
@@ -451,6 +456,47 @@ impl RecursiveDescentParser {
         false
     }
 
+    // assign_stmt = left_value = right_value ;
+    fn match_assign_stmt(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::AssignStmt);
+
+        loop {
+            // left_value
+            if !self.match_left_value(&self_id) { break; }
+
+            // `=`
+            if !self.term(Token::Operator(Operators::Assign)) { break; }
+
+            // right_value
+            if !self.match_bool_expr(&self_id) { break; }
+
+            // ';'
+            if !self.term(Token::Semicolon) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // left_value = ident
+    fn match_left_value(&mut self, root: &NodeId) -> bool {
+        if let Some(id) = self.match_identifier() {
+            insert!(self.tree, root, id);
+
+            return true;
+        }
+        return false;
+    }
+
+    // right_value = bool_expr
+    fn match_right_value(&mut self, root: &NodeId) -> bool {
+        self.match_bool_expr(root)
+    }
+
     // func_declare = type variable (argument_list) ;
     // fn match_function_declare(&mut self, root: &NodeId) -> bool {
         // false
@@ -636,7 +682,7 @@ mod test {
     }
 
     macro_rules! test_tree {
-        ($test: tt, $func: ident, $tree: ident) => {
+        ($test: expr, $func: ident, $tree: ident) => {
             let mut parser = RecursiveDescentParser::new(Lexer::new($test.as_bytes()));
             let id = parser.root_id();
 
@@ -736,5 +782,26 @@ mod test {
 
         test_tree!(test, match_bool_expr, tree);
         test_tree!(test1, match_bool_expr, tree);
+    }
+
+    #[test]
+    fn test_assign_stmt() {
+        let tests = vec!["number = x + 1;",
+                         "num = x;",
+                         "num\n=\n1;"];
+        test_func!(tests, match_assign_stmt);
+
+        let failure_tests = vec!["number = x"];
+        test_func!(failure_tests, match_assign_stmt, false);
+
+        let (mut tree, root_id) = tree!();
+        let assign = insert_type!(tree, root_id, AssignStmt);
+            insert!(tree, assign, Token::Identifier("number".to_owned()));
+            let expr = insert_type!(tree, assign, Expr);
+            insert!(tree, expr, Token::Identifier("x".to_owned()));
+            insert!(tree, expr, Token::Operator(Operators::Add));
+            insert!(tree, expr, Token::Number("1".to_owned()));
+
+        test_tree!("number = x + 1;", match_assign_stmt, tree);
     }
 }
