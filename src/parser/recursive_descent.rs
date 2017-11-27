@@ -62,6 +62,10 @@ use id_tree::RemoveBehavior::*;
 /// func_declare = type variable (argument_list) ;
 /// argument_list = argument | argument , argument_list
 ///
+/// stmt = assign_stmt
+///
+/// if_stmt = if ( bool_expr ) stmt else stmt
+///
 /// assign_stmt = left_value = right_value ;
 ///
 /// left_value = variable
@@ -456,6 +460,11 @@ impl RecursiveDescentParser {
         false
     }
 
+    fn match_stmt(&mut self, root: &NodeId) -> bool {
+        self.match_assign_stmt(root) ||
+        self.match_if_stmt(root)
+    }
+
     // assign_stmt = left_value = right_value ;
     fn match_assign_stmt(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
@@ -479,6 +488,44 @@ impl RecursiveDescentParser {
 
         self.current = cur;
         self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // if_stmt = if ( bool_expr ) stmt else stmt
+    fn match_if_stmt(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+
+        loop {
+            // if
+            if self.term(Token::KeyWord(KeyWords::If)) {
+                let if_id = insert_type!(self.tree, root, SyntaxType::IfStmt);
+
+                // ( bool_expr ) stmt
+                if self.term(Token::Bracket(Brackets::LeftParenthesis)) &&
+                   self.match_bool_expr(&if_id) &&
+                   self.term(Token::Bracket(Brackets::RightParenthesis)) &&
+                   self.match_stmt(&if_id) {
+                    // else
+                    if self.term(Token::KeyWord(KeyWords::Else)) {
+                        let else_cur = self.current;
+                        let else_id = insert_type!(self.tree, root, SyntaxType::ElseStmt);
+
+                        // stmt
+                        if self.match_stmt(&else_id) { return true; }
+
+                        self.current = else_cur;
+                        self.tree.remove_node(else_id, DropChildren).unwrap();
+                    }
+
+                    return true;
+                }
+
+                self.tree.remove_node(if_id, DropChildren).unwrap();
+                break;
+            }
+        }
+
+        self.current = cur;
         false
     }
 
@@ -803,5 +850,49 @@ mod test {
             insert!(tree, expr, Token::Number("1".to_owned()));
 
         test_tree!("number = x + 1;", match_assign_stmt, tree);
+    }
+
+    #[test]
+    fn test_if_stmt() {
+        let tests = vec!["if (x == 1) x = 1; else x = 2;"];
+        test_func!(tests, match_if_stmt);
+
+        // if-else
+        let (mut tree, root_id) = tree!();
+        let if_stmt = insert_type!(tree, root_id, IfStmt);
+            insert!(tree, if_stmt, Token::Identifier("x".to_owned()));
+            insert!(tree, if_stmt, Token::Operator(Operators::Equal));
+            insert!(tree, if_stmt, Token::Number("1".to_owned()));
+            let assign = insert_type!(tree, if_stmt, AssignStmt);
+                insert!(tree, assign, Token::Identifier("x".to_owned()));
+                insert!(tree, assign, Token::Number("1".to_owned()));
+        let else_stmt = insert_type!(tree, root_id, ElseStmt);
+            let assign = insert_type!(tree, else_stmt, AssignStmt);
+                insert!(tree, assign, Token::Identifier("x".to_owned()));
+                insert!(tree, assign, Token::Number("2".to_owned()));
+
+        let stmt = "if(x==1)x=1;else\nx=2;";
+        test_tree!(stmt, match_if_stmt, tree);
+
+        // if-if-else
+        let (mut tree, root_id) = tree!();
+        let if_stmt = insert_type!(tree, root_id, IfStmt);
+            insert!(tree, if_stmt, Token::Identifier("x".to_owned()));
+            insert!(tree, if_stmt, Token::Operator(Operators::Equal));
+            insert!(tree, if_stmt, Token::Number("1".to_owned()));
+            let inner_if = insert_type!(tree, if_stmt, IfStmt);
+                insert!(tree, inner_if, Token::Identifier("x".to_owned()));
+                insert!(tree, inner_if, Token::Operator(Operators::NotEqual));
+                insert!(tree, inner_if, Token::Number("2".to_owned()));
+                let assign = insert_type!(tree, inner_if, AssignStmt);
+                    insert!(tree, assign, Token::Identifier("x".to_owned()));
+                    insert!(tree, assign, Token::Number("3".to_owned()));
+            let else_stmt = insert_type!(tree, if_stmt, ElseStmt);
+                let assign = insert_type!(tree, else_stmt, AssignStmt);
+                    insert!(tree, assign, Token::Identifier("x".to_owned()));
+                    insert!(tree, assign, Token::Number("2".to_owned()));
+
+        let stmt = "if(x==1)if(x!=2)x=3;else\nx=2;";
+        test_tree!(stmt, match_if_stmt, tree);
     }
 }

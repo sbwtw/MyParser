@@ -12,6 +12,8 @@ pub enum SyntaxType {
     Expr,
     BooleanExpr,
     AssignStmt,
+    IfStmt,
+    ElseStmt,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;
