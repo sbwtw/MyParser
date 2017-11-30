@@ -53,6 +53,7 @@ impl KeyWords {
             &KeyWords::Long => true,
             &KeyWords::Double => true,
             &KeyWords::Float => true,
+            &KeyWords::Void => true,
             _ => false,
         }
     }
@@ -236,4 +237,9 @@ fn test_keywords() {
     assert!(is_keywords("struct"));
     assert!(is_keywords("unsigned"));
     assert!(!is_keywords("bool"));
+}
+
+#[test]
+fn test_type() {
+    assert!(KeyWords::Void.is_type());
 }

@@ -229,6 +229,8 @@ impl RecursiveDescentParser {
 
     fn match_type(&mut self) -> TokenResult {
 
+        if self.current >= self.tokens.len() { return None; }
+
         if let KeyWord(ref k) = self.tokens[self.current] {
             if k.is_type() {
                 self.current += 1;
@@ -756,7 +758,7 @@ mod test {
     #[test]
     fn test_struct_define() {
         let tests = vec!["struct Str { int a; short b; };",
-                         "struct Str {};",
+                         "\nstruct\n    { int a; }; \n",
                          "\nstruct\nS\n{\nint\na\n;\n}\n;\n"];
         test_func!(tests, match_struct_define);
 
