@@ -158,8 +158,20 @@ short, int, long, unsigned, ...
     - `!=`
 
 ### 语句
+
 - stmt:
+    - `stmt_factor`
+
+- stmt_factor:
     - `assign_stmt`
+    - `if_stmt`
+    - `stmt_block`
+
+- stmt_list:
+    - `stmt` `stmt_list` | `epsilon`
+
+- stmt_block:
+    - `{` `stmt_list` `}`
 
 - assign_stmt:
     - `left_value` `=` `right_value` `;`
@@ -216,3 +228,17 @@ short, int, long, unsigned, ...
 
 - struct_var
     - `variable_define`
+
+#### 函数定义
+- function:
+    - `func_ret_type` `func_name` `(` `)` `{` `func_body` `}`
+
+- func_ret_type:
+    - `type`
+
+- func_name
+    - `identifier`
+
+- func_body:
+    - `stmt_list`
+

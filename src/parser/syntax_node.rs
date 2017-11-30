@@ -11,9 +11,11 @@ pub enum SyntaxType {
     VariableDefine,
     Expr,
     BooleanExpr,
+    StmtBlock,
     AssignStmt,
     IfStmt,
     ElseStmt,
+    FuncDefine,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;

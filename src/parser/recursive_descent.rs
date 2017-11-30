@@ -402,6 +402,12 @@ impl RecursiveDescentParser {
         self.match_if_stmt(root)
     }
 
+    fn match_stmt_list(&mut self, root: &NodeId) -> bool {
+        while self.match_stmt(root) {}
+
+        true
+    }
+
     // assign_stmt = left_value = right_value ;
     fn match_assign_stmt(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
@@ -460,6 +466,8 @@ impl RecursiveDescentParser {
                 self.tree.remove_node(if_id, DropChildren).unwrap();
                 break;
             }
+
+            break;
         }
 
         self.current = cur;
@@ -485,6 +493,41 @@ impl RecursiveDescentParser {
     // fn match_function_declare(&mut self, root: &NodeId) -> bool {
         // false
     // }
+
+    // - function:
+    //   - `func_ret_type` `func_name` `(` `)` `{` `func_body` `}`
+    fn match_function_define(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::FuncDefine);
+
+        loop {
+            // type
+            match self.match_type() {
+                Some(t) => insert!(self.tree, self_id, t),
+                _ => break,
+            };
+
+            // func_name
+            match self.match_identifier() {
+                Some(id) => insert!(self.tree, self_id, id),
+                _ => break,
+            };
+
+            if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+            if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
+            if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) { break; }
+
+            // func_body
+            if !self.match_stmt_list(&self_id) { break; }
+
+            if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) { break; }
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
 
     // > | >= | < | <=
     fn match_cmp_op(&mut self) -> TokenResult {
@@ -613,8 +656,8 @@ impl Parser for RecursiveDescentParser {
             if self.current == last_pos { return false; }
             last_pos = self.current;
 
-            self.match_bool_expr(id);
             self.match_struct_define(id);
+            self.match_function_define(id);
         }
     }
 
@@ -831,5 +874,14 @@ mod test {
 
         let stmt = "if(x==1)if(x!=2)x=3;else\nx=2;";
         test_tree!(stmt, match_if_stmt, tree);
+    }
+
+    #[test]
+    fn test_stmt_list() {
+        let tests = vec!["a = 2; b = 3;",
+                         "",
+                        //  ";",
+                         "a = 2;"];
+        test_func!(tests, match_stmt_list);
     }
 }
