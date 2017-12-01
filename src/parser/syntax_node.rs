@@ -16,6 +16,7 @@ pub enum SyntaxType {
     IfStmt,
     ElseStmt,
     FuncDefine,
+    FuncDeclare,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;

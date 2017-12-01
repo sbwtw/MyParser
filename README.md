@@ -209,7 +209,13 @@ short, int, long, unsigned, ...
 
 #### 函数声明
 - func_declare:
-    - `type` `identifier` `(` `arg_list` `)` `;`
+    - `func_ret_type` `func_name` `(` `arg_list` `)` `;`
+
+- func_name
+    - `identifier`
+
+- func_ret_type:
+    - `type`
 
 - arg_list:
     - `arg`
@@ -232,12 +238,6 @@ short, int, long, unsigned, ...
 #### 函数定义
 - function:
     - `func_ret_type` `func_name` `(` `)` `{` `func_body` `}`
-
-- func_ret_type:
-    - `type`
-
-- func_name
-    - `identifier`
 
 - func_body:
     - `stmt_list`

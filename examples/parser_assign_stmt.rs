@@ -7,15 +7,8 @@ use parser::parser::recursive_descent::*;
 
 fn main() {
     let src = "
-    struct S { int a; };
-
-    void func()
-    {
-        a = 1;
-
-        if (a == 2 || a <= 1)
-            a = 1;
-    }
+    int main();
+    void func();
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
 

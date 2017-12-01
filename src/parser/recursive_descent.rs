@@ -491,10 +491,35 @@ impl RecursiveDescentParser {
         self.match_bool_expr(root)
     }
 
-    // func_declare = type variable (argument_list) ;
-    // fn match_function_declare(&mut self, root: &NodeId) -> bool {
-        // false
-    // }
+    // `func_ret_type` `func_name` `(` `arg_list` `)` `;`
+    fn match_function_declare(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::FuncDeclare);
+
+        loop {
+            // type
+            match self.match_type() {
+                Some(t) => insert!(self.tree, self_id, t),
+                _ => break,
+            };
+
+            // func_name
+            match self.match_identifier() {
+                Some(id) => insert!(self.tree, self_id, id),
+                _ => break,
+            };
+
+            if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+            if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
+            if !self.term(Token::Semicolon) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
 
     // - function:
     //   - `func_ret_type` `func_name` `(` `)` `{` `func_body` `}`
@@ -660,6 +685,7 @@ impl Parser for RecursiveDescentParser {
 
             self.match_struct_define(id);
             self.match_function_define(id);
+            self.match_function_declare(id);
         }
     }
 

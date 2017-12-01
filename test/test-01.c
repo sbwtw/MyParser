@@ -1,4 +1,6 @@
 
+void func();
+
 struct S { int a; };
 
 void func()

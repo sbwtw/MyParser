@@ -26,6 +26,8 @@ mod test {
                     let mut parser = RecursiveDescentParser::new(Lexer::new(f));
 
                     assert!(parser.run());
+
+                    // TODO: compare with abstract syntax tree dump.
                 }
             }
         }
