@@ -17,6 +17,7 @@ pub enum SyntaxType {
     ElseStmt,
     FuncDefine,
     FuncDeclare,
+    FuncArg,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;

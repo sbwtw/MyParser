@@ -491,7 +491,7 @@ impl RecursiveDescentParser {
         self.match_bool_expr(root)
     }
 
-    // `func_ret_type` `func_name` `(` `arg_list` `)` `;`
+    // `func_ret_type` `func_name` `(` `func_arg_list` `)` `;`
     fn match_function_declare(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::FuncDeclare);
@@ -510,6 +510,7 @@ impl RecursiveDescentParser {
             };
 
             if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+            if !self.match_func_arg_list(&self_id) { break; }
             if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
             if !self.term(Token::Semicolon) { break; }
 
@@ -521,8 +522,7 @@ impl RecursiveDescentParser {
         false
     }
 
-    // - function:
-    //   - `func_ret_type` `func_name` `(` `)` `{` `func_body` `}`
+    // - `func_ret_type` `func_name` `(` `func_arg_list` `)` `{` `func_body` `}`
     fn match_function_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::FuncDefine);
@@ -541,6 +541,7 @@ impl RecursiveDescentParser {
             };
 
             if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+            if !self.match_func_arg_list(&self_id) { break; }
             if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
             if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) { break; }
 
@@ -548,6 +549,54 @@ impl RecursiveDescentParser {
             if !self.match_stmt_list(&self_id) { break; }
 
             if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) { break; }
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // - `func_arg` `func_arg_list_tail`
+    // - `epsilon`
+    fn match_func_arg_list(&mut self, root: &NodeId) -> bool {
+
+        if self.match_func_arg(root) {
+            return self.match_func_arg_list_tail(root);
+        }
+
+        true
+    }
+
+    // - `,` `func_arg` `func_arg_list_tail`
+    // - `epsilon`
+    fn match_func_arg_list_tail(&mut self, root: &NodeId) -> bool {
+
+        if self.term(Token::Comma) {
+            return self.match_func_arg(root) &&
+                   self.match_func_arg_list_tail(root);
+        }
+
+        true
+    }
+
+    // `func_arg_type` `func_arg_name`
+    fn match_func_arg(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::FuncArg);
+
+        loop {
+            // func_arg_type
+            match self.match_type() {
+                Some(t) => insert!(self.tree, self_id, t),
+                _ => break,
+            };
+
+            match self.match_identifier() {
+                Some(id) => insert!(self.tree, self_id, id),
+                _ => break,
+            };
+
             return true;
         }
 
