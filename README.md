@@ -166,6 +166,7 @@ short, int, long, unsigned, ...
     - `assign_stmt`
     - `if_stmt`
     - `stmt_block`
+    - `return_stmt`
 
 - stmt_list:
     - `stmt` `stmt_list` | `epsilon`
@@ -178,6 +179,13 @@ short, int, long, unsigned, ...
 
 - if_stmt:
     - `if` `(` `bool_expr` `)` `stmt` `else` `stmt`
+
+- return_stmt:
+    - `return` `return_expr` `;`
+
+- return_expr:
+    - `bool_expr`
+    - `epsilon`
 
 - left_value:
     - `identifier`

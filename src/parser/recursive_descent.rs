@@ -401,7 +401,8 @@ impl RecursiveDescentParser {
 
     fn match_stmt(&mut self, root: &NodeId) -> bool {
         self.match_assign_stmt(root) ||
-        self.match_if_stmt(root)
+        self.match_if_stmt(root) ||
+        self.match_return_stmt(root)
     }
 
     fn match_stmt_list(&mut self, root: &NodeId) -> bool {
@@ -474,6 +475,32 @@ impl RecursiveDescentParser {
 
         self.current = cur;
         false
+    }
+
+    // `return` `return_expr` `;`
+    fn match_return_stmt(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::ReturnStmt);
+
+        loop {
+            if !self.term(Token::KeyWord(KeyWords::Return)) { break; }
+            if !self.match_return_type(&self_id) { break; }
+            if !self.term(Token::Semicolon) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // - `bool_expr`
+    // - `epsilon`
+    fn match_return_type(&mut self, root: &NodeId) -> bool {
+        self.match_bool_expr(root);
+
+        true
     }
 
     // left_value = ident

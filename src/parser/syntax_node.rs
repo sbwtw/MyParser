@@ -15,6 +15,7 @@ pub enum SyntaxType {
     AssignStmt,
     IfStmt,
     ElseStmt,
+    ReturnStmt,
     FuncDefine,
     FuncDeclare,
     FuncArg,
