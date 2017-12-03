@@ -51,7 +51,18 @@ Bracket(RightCurlyBracket)
 
 Print abstract syntax tree
 ```
-    let src = "struct S {int a ; double b; };";
+    let src = "
+int func_add(int a, int b)
+{
+    return a + b;
+}
+
+int main()
+{
+    return 0;
+}
+    ";
+
     let lexer = Lexer::new(src.as_bytes());
     let mut parser = RecursiveDescentParser::new(lexer);
     parser.run();
@@ -60,20 +71,25 @@ Print abstract syntax tree
 The output is:
 ```
 SyntaxTree
-  Struct
-    Terminal(KeyWord(Struct))
-    Terminal(Variable("S"))
-    Terminal(Bracket(LeftCurlyBracket))
-    Variable
+  FuncDefine
+    Terminal(KeyWord(Int))
+    Terminal(Identifier("func_add"))
+    FuncArg
       Terminal(KeyWord(Int))
-      Terminal(Variable("a"))
-      Terminal(Semicolon)
-    Variable
-      Terminal(KeyWord(Double))
-      Terminal(Variable("b"))
-      Terminal(Semicolon)
-    Terminal(Bracket(RightCurlyBracket))
-    Terminal(Semicolon)
+      Terminal(Identifier("a"))
+    FuncArg
+      Terminal(KeyWord(Int))
+      Terminal(Identifier("b"))
+    ReturnStmt
+      Expr
+        Terminal(Identifier("a"))
+        Terminal(Operator(Add))
+        Terminal(Identifier("b"))
+  FuncDefine
+    Terminal(KeyWord(Int))
+    Terminal(Identifier("main"))
+    ReturnStmt
+      Terminal(Number("0"))
 ```
 
 ## C-language syntax defines
