@@ -20,7 +20,11 @@ name = "parser_assign_stmt"
 [[example]]
 name = "clint"
 path = "examples/programs/clint.rs"
+[[example]]
+name = "llvm"
+path = "examples/programs/llvm.rs"
 
 [dependencies]
 id_tree = "*"
+llvm-sys = "*"
 matches = "*"
