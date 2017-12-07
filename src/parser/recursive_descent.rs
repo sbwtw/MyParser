@@ -424,7 +424,7 @@ impl RecursiveDescentParser {
             if !self.term(Token::Operator(Operators::Assign)) { break; }
 
             // right_value
-            if !self.match_bool_expr(&self_id) { break; }
+            if !self.match_right_value(&self_id) { break; }
 
             // ';'
             if !self.term(Token::Semicolon) { break; }
