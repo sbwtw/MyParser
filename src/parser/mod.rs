@@ -3,8 +3,10 @@ mod syntax_node;
 
 use self::syntax_node::SyntaxTree;
 
+type ParserResult = bool;
+
 pub trait Parser {
-    fn run(&mut self) -> bool;
+    fn run(&mut self) -> ParserResult;
     fn syntax_tree(&self) -> &SyntaxTree;
 }
 
