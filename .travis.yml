@@ -1,3 +1,9 @@
+sudo: true
+dist: trusty
+
+env:
+    - LLVM_SYS_50_STRICT_VERSIONING=1 LLVM_SYS_50_PREFIX=/usr/lib/llvm-5.0
+
 language: rust
 
 rust:
@@ -10,3 +16,10 @@ cache:
 script:
     - cargo build
     - cargo test
+
+addons:
+    apt:
+        sources:
+            - llvm-toolchain-trusty-5.0
+        packages:
+            - llvm-5.0-dev
