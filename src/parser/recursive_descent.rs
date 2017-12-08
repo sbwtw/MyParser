@@ -400,15 +400,69 @@ impl RecursiveDescentParser {
     }
 
     fn match_stmt(&mut self, root: &NodeId) -> bool {
+        self.match_stmt_block(root) ||
         self.match_assign_stmt(root) ||
         self.match_if_stmt(root) ||
-        self.match_return_stmt(root)
+        self.match_return_stmt(root) ||
+        self.match_break_stmt(root) ||
+        self.match_while_loop(root)
     }
 
     fn match_stmt_list(&mut self, root: &NodeId) -> bool {
         while self.match_stmt(root) {}
 
         true
+    }
+
+    fn match_stmt_block(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::StmtBlock);
+
+        loop {
+            // `{`
+            if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) { break; }
+
+            // `stmt_list`
+            if !self.match_stmt_list(&self_id) { break; }
+
+            // '}'
+            if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // `while` `(` `bool_expr` `)` `stmt`
+    fn match_while_loop(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::WhileLoop);
+
+        loop {
+            // `while`
+            if !self.term(Token::KeyWord(KeyWords::While)) { break; }
+
+            // `(`
+            if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+
+            // `bool_expr`
+            if !self.match_bool_expr(&self_id) { break; }
+
+            // ')'
+            if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
+
+            // `stmt`
+            if !self.match_stmt(&self_id) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
     }
 
     // assign_stmt = left_value = right_value ;
@@ -495,6 +549,17 @@ impl RecursiveDescentParser {
         false
     }
 
+    // `break` `;`
+    fn match_break_stmt(&mut self, root: &NodeId) -> bool {
+        if self.term(Token::KeyWord(KeyWords::Break)) &&
+           self.term(Token::Semicolon) {
+            insert_type!(self.tree, root, SyntaxType::BreakStmt);
+            return true
+        }
+
+        false
+    }
+
     // - `bool_expr`
     // - `epsilon`
     fn match_return_type(&mut self, root: &NodeId) -> bool {
@@ -576,6 +641,7 @@ impl RecursiveDescentParser {
             if !self.match_stmt_list(&self_id) { break; }
 
             if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) { break; }
+
             return true;
         }
 

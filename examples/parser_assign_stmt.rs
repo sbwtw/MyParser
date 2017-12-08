@@ -7,14 +7,14 @@ use parser::parser::recursive_descent::*;
 
 fn main() {
     let src = "
-
-int func_add(int a, int b)
-{
-    return a + b;
-}
-
 int main()
 {
+    while (a > 5)
+    {
+        if (a == 0)
+            break;
+    }
+
     return 0;
 }
     ";

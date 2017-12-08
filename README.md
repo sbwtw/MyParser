@@ -181,6 +181,8 @@ short, int, long, unsigned, ...
 - stmt_factor:
     - `assign_stmt`
     - `if_stmt`
+    - `while_loop`
+    - `break_stmt`
     - `stmt_block`
     - `return_stmt`
 
@@ -195,6 +197,12 @@ short, int, long, unsigned, ...
 
 - if_stmt:
     - `if` `(` `bool_expr` `)` `stmt` `else` `stmt`
+
+- while_loop:
+    - `while` `(` `bool_expr` `)` `stmt`
+
+- break_stmt:
+    - `break` `;`
 
 - return_stmt:
     - `return` `return_expr` `;`
