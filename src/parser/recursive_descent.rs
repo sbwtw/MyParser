@@ -30,7 +30,16 @@ macro_rules! replace {
 }
 
 fn print_space(indentation: usize) {
-    for _ in 0..indentation { print!("  "); }
+    // for _ in 0..indentation { print!("  "); }
+    for i in 0..indentation {
+        match i % 4 {
+            0 => print!("|  "),
+            1 => print!(":  "),
+            2 => print!("!  "),
+            3 => print!(".  "),
+            _ => {},
+        }
+    }
 }
 
 fn dump_tree(tree: &SyntaxTree, root: &NodeId, indentation: usize) {
@@ -406,10 +415,12 @@ impl RecursiveDescentParser {
     // - `stmt_single` `;`
     // - `stmt_block`
     // - `stmt_control`
+    // - `;`
     fn match_stmt_factor(&mut self, root: &NodeId) -> ParserResult {
         self.match_stmt_block(root) ||
         self.match_stmt_control(root) ||
-        self.match_stmt_single(root) && self.term(Token::Semicolon)
+        self.match_stmt_single(root) && self.term(Token::Semicolon) ||
+        self.term(Token::Semicolon)
     }
 
     // - `assign_stmt`

@@ -186,6 +186,7 @@ short, int, long, unsigned, ...
     - `stmt_single` `;`
     - `stmt_block`
     - `stmt_control`
+    - `;`
 
 - stmt_single
     - `assign_stmt`
