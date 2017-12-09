@@ -370,7 +370,6 @@ impl RecursiveDescentParser {
         true
     }
 
-
     /// expr_factor = (expr) | ident
     fn match_expr_factor(&mut self, root: &NodeId) -> ParserResult {
         let cur = self.current;
@@ -399,13 +398,36 @@ impl RecursiveDescentParser {
         false
     }
 
+    // - `stmt_factor`
     fn match_stmt(&mut self, root: &NodeId) -> ParserResult {
+        self.match_stmt_factor(root)
+    }
+
+    // - `stmt_single` `;`
+    // - `stmt_block`
+    // - `stmt_control`
+    fn match_stmt_factor(&mut self, root: &NodeId) -> ParserResult {
         self.match_stmt_block(root) ||
+        self.match_stmt_control(root) ||
+        self.match_stmt_single(root) && self.term(Token::Semicolon)
+    }
+
+    // - `assign_stmt`
+    // - `break_stmt`
+    // - `return_stmt`
+    fn match_stmt_single(&mut self, root: &NodeId) -> ParserResult {
         self.match_assign_stmt(root) ||
-        self.match_if_stmt(root) ||
-        self.match_return_stmt(root) ||
         self.match_break_stmt(root) ||
-        self.match_while_loop(root)
+        self.match_return_stmt(root)
+    }
+
+    // - `if_stmt`
+    // - `while_loop`
+    // - `for_loop`
+    fn match_stmt_control(&mut self, root: &NodeId) -> ParserResult {
+        self.match_if_stmt(root) ||
+        self.match_while_loop(root) ||
+        self.match_for_loop(root)
     }
 
     fn match_stmt_list(&mut self, root: &NodeId) -> ParserResult {
@@ -427,6 +449,47 @@ impl RecursiveDescentParser {
 
             // '}'
             if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // `for` `(` `expr_opt` `;` `expr_opt` `;` `expr_opt` `)` `stmt`
+    fn match_for_loop(&mut self, root: &NodeId) -> ParserResult {
+
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::ForLoop);
+
+        loop {
+            // `for`
+            if !self.term(Token::KeyWord(KeyWords::For)) { break; }
+
+            // `(`
+            if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+
+            // expr_opt1 ;
+            let expr_opt1 = insert_type!(self.tree, &self_id, SyntaxType::ExprOpt);
+            self.match_assign_stmt(&expr_opt1);
+            if !self.term(Token::Semicolon) { break; }
+
+            // expr_opt2 ;
+            let expr_opt2 = insert_type!(self.tree, &self_id, SyntaxType::ExprOpt);
+            self.match_bool_expr(&expr_opt2);
+            if !self.term(Token::Semicolon) { break; }
+
+            // expr_opt3
+            let expr_opt3 = insert_type!(self.tree, &self_id, SyntaxType::ExprOpt);
+            if !self.match_assign_stmt(&expr_opt3) { break; }
+
+            // ')'
+            if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
+
+            // `stmt`
+            if !self.match_stmt(&self_id) { break; }
 
             return true;
         }
@@ -465,7 +528,7 @@ impl RecursiveDescentParser {
         false
     }
 
-    // assign_stmt = left_value = right_value ;
+    // assign_stmt = left_value = right_value
     fn match_assign_stmt(&mut self, root: &NodeId) -> ParserResult {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::AssignStmt);
@@ -479,9 +542,6 @@ impl RecursiveDescentParser {
 
             // right_value
             if !self.match_right_value(&self_id) { break; }
-
-            // ';'
-            if !self.term(Token::Semicolon) { break; }
 
             return true;
         }
@@ -531,7 +591,7 @@ impl RecursiveDescentParser {
         false
     }
 
-    // `return` `return_expr` `;`
+    // `return` `return_expr`
     fn match_return_stmt(&mut self, root: &NodeId) -> ParserResult {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::ReturnStmt);
@@ -539,7 +599,6 @@ impl RecursiveDescentParser {
         loop {
             if !self.term(Token::KeyWord(KeyWords::Return)) { break; }
             if !self.match_return_type(&self_id) { break; }
-            if !self.term(Token::Semicolon) { break; }
 
             return true;
         }
@@ -549,10 +608,9 @@ impl RecursiveDescentParser {
         false
     }
 
-    // `break` `;`
+    // `break`
     fn match_break_stmt(&mut self, root: &NodeId) -> ParserResult {
-        if self.term(Token::KeyWord(KeyWords::Break)) &&
-           self.term(Token::Semicolon) {
+        if self.term(Token::KeyWord(KeyWords::Break)) {
             insert_type!(self.tree, root, SyntaxType::BreakStmt);
             return true
         }
@@ -983,13 +1041,13 @@ mod test {
 
     #[test]
     fn test_assign_stmt() {
-        let tests = vec!["number = x + 1;",
-                         "num = x;",
-                         "num\n=\n1;"];
+        let tests = vec!["number = x + 1",
+                         "num = x",
+                         "num\n=\n1"];
         test_func!(tests, match_assign_stmt);
 
         let failure_tests = vec!["number = x"];
-        test_func!(failure_tests, match_assign_stmt, false);
+        test_func!(failure_tests, match_stmt, false);
 
         let (mut tree, root_id) = tree!();
         let assign = insert_type!(tree, root_id, AssignStmt);

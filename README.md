@@ -105,6 +105,10 @@ short, int, long, unsigned, ...
 - ident = `number` | `identifier`
 
 ### 表达式
+- expr_opt:
+    - `bool_expr`
+    - `epsilon`
+
 - expr:
     - `expr` `add_op` `expr_mul`
     - => `expr_mul` `expr_fix` （消除左递归后的产生式，下同）
@@ -179,12 +183,19 @@ short, int, long, unsigned, ...
     - `stmt_factor`
 
 - stmt_factor:
+    - `stmt_single` `;`
+    - `stmt_block`
+    - `stmt_control`
+
+- stmt_single
     - `assign_stmt`
+    - `break_stmt`
+    - `return_stmt`
+
+- stmt_control
     - `if_stmt`
     - `while_loop`
-    - `break_stmt`
-    - `stmt_block`
-    - `return_stmt`
+    - `for_loop`
 
 - stmt_list:
     - `stmt` `stmt_list` | `epsilon`
@@ -193,7 +204,7 @@ short, int, long, unsigned, ...
     - `{` `stmt_list` `}`
 
 - assign_stmt:
-    - `left_value` `=` `right_value` `;`
+    - `left_value` `=` `right_value`
 
 - if_stmt:
     - `if` `(` `bool_expr` `)` `stmt` `else` `stmt`
@@ -201,11 +212,14 @@ short, int, long, unsigned, ...
 - while_loop:
     - `while` `(` `bool_expr` `)` `stmt`
 
+- for_loop:
+    - `for` `(` `expr_opt` `;` `expr_opt` `;` `expr_opt` `)` `stmt`
+
 - break_stmt:
-    - `break` `;`
+    - `break`
 
 - return_stmt:
-    - `return` `return_expr` `;`
+    - `return` `return_expr`
 
 - return_expr:
     - `bool_expr`
