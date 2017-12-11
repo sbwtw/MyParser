@@ -18,6 +18,8 @@ name = "parser_test_c"
 [[example]]
 name = "parser_assign_stmt"
 [[example]]
+name = "type_analyzer"
+[[example]]
 name = "clint"
 path = "examples/programs/clint.rs"
 [[example]]

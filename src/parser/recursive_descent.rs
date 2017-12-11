@@ -29,35 +29,6 @@ macro_rules! replace {
     }
 }
 
-fn print_space(indentation: usize) {
-    // for _ in 0..indentation { print!("  "); }
-    for i in 0..indentation {
-        match i % 4 {
-            0 => print!("|  "),
-            1 => print!(":  "),
-            2 => print!("!  "),
-            3 => print!(".  "),
-            _ => {},
-        }
-    }
-}
-
-fn dump_tree(tree: &SyntaxTree, root: &NodeId, indentation: usize) {
-
-    // print root
-    print_space(indentation);
-    println!("{:?}", tree.get(root).unwrap().data());
-
-    for node in tree.children(root).unwrap() {
-        print_space(indentation + 1);
-        println!("{:?}", node.data());
-
-        for child in node.children() {
-            dump_tree(tree, child, indentation + 2);
-        }
-    }
-}
-
 pub struct RecursiveDescentParser {
     tokens: Vec<Token>,
     current: usize,
