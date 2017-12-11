@@ -131,7 +131,7 @@ impl Numbers {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum Token {
     Arrow,
     Asterisk,

@@ -9,7 +9,9 @@ use id_tree::*;
 use id_tree::InsertBehavior::*;
 use id_tree::RemoveBehavior::*;
 
-type TokenResult = Option<Token>;
+use std::rc::Rc;
+
+type TokenResult = Option<Rc<Token>>;
 
 macro_rules! insert {
     ($tree: expr, $root: expr, $tok: expr) => {
@@ -30,7 +32,7 @@ macro_rules! replace {
 }
 
 pub struct RecursiveDescentParser {
-    tokens: Vec<Token>,
+    tokens: Vec<Rc<Token>>,
     current: usize,
     tree: SyntaxTree,
 }
@@ -43,7 +45,10 @@ impl RecursiveDescentParser {
         tree.insert(root_node, AsRoot).unwrap();
 
         RecursiveDescentParser {
-            tokens: lexer.filter(|x| !matches!(x, &Token::Comment(_))).collect(),
+            tokens: lexer
+                .filter(|x| !matches!(x, &Token::Comment(_)))
+                .map(|x| Rc::new(x))
+                .collect(),
             current: 0,
             tree: tree,
         }
@@ -78,7 +83,7 @@ impl RecursiveDescentParser {
     /// bool_expr_fix = || bool_expr_and bool_expr_fix | epsilon
     fn match_bool_expr_fix(&mut self, root: &NodeId) -> ParserResult {
         if self.term(Token::Operator(Operators::LogicOr)) {
-            let id = insert!(self.tree, root, Token::Operator(Operators::LogicOr));
+            let id = insert!(self.tree, root, Rc::new(Token::Operator(Operators::LogicOr)));
             let root_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
 
             if self.match_bool_expr_and(&root_id) &&
@@ -105,7 +110,7 @@ impl RecursiveDescentParser {
     /// bool_expr_and_fix = && bool_expr_equal bool_expr_and_fix | epsilon
     fn match_bool_expr_and_fix(&mut self, root: &NodeId) -> ParserResult {
         if self.term(Token::Operator(Operators::LogicAnd)) {
-            let id = insert!(self.tree, root, Token::Operator(Operators::LogicAnd));
+            let id = insert!(self.tree, root, Rc::new(Token::Operator(Operators::LogicAnd)));
             let root_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
 
             if self.match_bool_expr_equal(&root_id) &&
@@ -177,7 +182,7 @@ impl RecursiveDescentParser {
 
         loop {
             if self.term(Token::Operator(Operators::LogicNot)) {
-                insert!(self.tree, &self_id, Token::Operator(Operators::LogicNot));
+                insert!(self.tree, &self_id, Rc::new(Token::Operator(Operators::LogicNot)));
                 if self.match_bool_expr(&self_id) {
                     return true;
                 }
@@ -211,10 +216,11 @@ impl RecursiveDescentParser {
 
         if self.current >= self.tokens.len() { return None; }
 
-        if let KeyWord(ref k) = self.tokens[self.current] {
+        if let KeyWord(ref k) = *self.tokens[self.current] {
             if k.is_type() {
+                let r = self.copy_current();
                 self.current += 1;
-                return Some(Token::KeyWord(k.clone()));
+                return r;
             }
         }
 
@@ -742,13 +748,13 @@ impl RecursiveDescentParser {
     fn match_cmp_op(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
 
-        return match self.tokens[self.current] {
-            ref tok @ Token::Operator(Operators::Greater) |
-            ref tok @ Token::Operator(Operators::GreaterEqual) |
-            ref tok @ Token::Operator(Operators::Less) |
-            ref tok @ Token::Operator(Operators::LessEqual) => {
+        return match *self.tokens[self.current] {
+            Token::Operator(Operators::Greater) |
+            Token::Operator(Operators::GreaterEqual) |
+            Token::Operator(Operators::Less) |
+            Token::Operator(Operators::LessEqual) => {
                 self.current += 1;
-                Some(tok.clone())
+                self.copy_previous()
             },
             _ => None,
         }
@@ -758,11 +764,11 @@ impl RecursiveDescentParser {
     fn match_equal_op(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
 
-        return match self.tokens[self.current] {
-            ref tok @ Token::Operator(Operators::Equal) |
-            ref tok @ Token::Operator(Operators::NotEqual) => {
+        return match *self.tokens[self.current] {
+            Token::Operator(Operators::Equal) |
+            Token::Operator(Operators::NotEqual) => {
                 self.current += 1;
-                Some(tok.clone())
+                self.copy_previous()
             },
             _ => None,
         }
@@ -770,11 +776,11 @@ impl RecursiveDescentParser {
 
     fn match_add_op(&mut self) -> TokenResult {
         if self.term(Token::Operator(Operators::Add)) {
-            return Some(Token::Operator(Operators::Add));
+            return self.copy_previous();
         }
 
         if self.term(Token::Operator(Operators::Minus)) {
-            return Some(Token::Operator(Operators::Minus));
+            return self.copy_previous();
         }
 
         None
@@ -782,11 +788,11 @@ impl RecursiveDescentParser {
 
     fn match_mul_op(&mut self) -> TokenResult {
         if self.term(Token::Operator(Operators::Division)) {
-            return Some(Token::Operator(Operators::Division));
+            return self.copy_previous();
         }
 
         if self.term(Token::Asterisk) {
-            return Some(Token::Operator(Operators::Mul));
+            return Some(Rc::new(Token::Operator(Operators::Mul)));
         }
 
         None
@@ -802,9 +808,9 @@ impl RecursiveDescentParser {
     fn match_identifier(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
 
-        if let Identifier(ref v) = self.tokens[self.current] {
+        if let Identifier(_) = *self.tokens[self.current] {
             self.current += 1;
-            return Some(Token::Identifier(v.clone()));
+            return self.copy_previous();
         }
 
         return None;
@@ -813,9 +819,9 @@ impl RecursiveDescentParser {
     fn match_number(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
 
-        if let Number(ref n) = self.tokens[self.current] {
+        if let Number(_) = *self.tokens[self.current] {
             self.current += 1;
-            return Some(Token::Number(n.clone()));
+            return self.copy_previous();
         }
 
         return None;
@@ -830,13 +836,23 @@ impl RecursiveDescentParser {
         }
     }
 
+    fn copy_previous(&self) -> TokenResult {
+        if self.current == 0 { return None; }
+        return Some(self.tokens[self.current - 1].clone())
+    }
+
+    fn copy_current(&self) -> TokenResult {
+        if self.current >= self.tokens.len() { return None; }
+        return Some(self.tokens[self.current].clone())
+    }
+
     fn term(&mut self, tok: Token) -> ParserResult {
 
         if self.current >= self.tokens.len() {
             return false;
         }
 
-        if self.tokens[self.current] == tok {
+        if *self.tokens[self.current] == tok {
             self.current += 1;
             return true;
         }
@@ -1003,18 +1019,18 @@ mod test {
         let test1 = "(a+b)!=(c+1)||!(e)";
         let (mut tree, root_id) = tree!();
         let expr = insert_type!(tree, root_id, Expr);
-            insert!(tree, expr, Token::Identifier("a".to_owned()));
-            insert!(tree, expr, Token::Operator(Operators::Add));
-            insert!(tree, expr, Token::Identifier("b".to_owned()));
-        insert!(tree, root_id, Token::Operator(Operators::NotEqual));
+            insert!(tree, expr, Rc::new(Token::Identifier("a".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Operator(Operators::Add)));
+            insert!(tree, expr, Rc::new(Token::Identifier("b".to_owned())));
+        insert!(tree, root_id, Rc::new(Token::Operator(Operators::NotEqual)));
         let expr = insert_type!(tree, root_id, Expr);
-            insert!(tree, expr, Token::Identifier("c".to_owned()));
-            insert!(tree, expr, Token::Operator(Operators::Add));
-            insert!(tree, expr, Token::Number(Numbers::from_str("1")));
-        insert!(tree, root_id, Token::Operator(Operators::LogicOr));
+            insert!(tree, expr, Rc::new(Token::Identifier("c".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Operator(Operators::Add)));
+            insert!(tree, expr, Rc::new(Token::Number(Numbers::from_str("1"))));
+        insert!(tree, root_id, Rc::new(Token::Operator(Operators::LogicOr)));
         let bool_expr = insert_type!(tree, root_id, BooleanExpr);
-            insert!(tree, bool_expr, Token::Operator(Operators::LogicNot));
-            insert!(tree, bool_expr, Token::Identifier("e".to_owned()));
+            insert!(tree, bool_expr, Rc::new(Token::Operator(Operators::LogicNot)));
+            insert!(tree, bool_expr, Rc::new(Token::Identifier("e".to_owned())));
 
 
         test_tree!(test, match_bool_expr, tree);
@@ -1033,11 +1049,11 @@ mod test {
 
         let (mut tree, root_id) = tree!();
         let assign = insert_type!(tree, root_id, AssignStmt);
-            insert!(tree, assign, Token::Identifier("number".to_owned()));
+            insert!(tree, assign, Rc::new(Token::Identifier("number".to_owned())));
             let expr = insert_type!(tree, assign, Expr);
-            insert!(tree, expr, Token::Identifier("x".to_owned()));
-            insert!(tree, expr, Token::Operator(Operators::Add));
-            insert!(tree, expr, Token::Number(Numbers::from_str("1")));
+            insert!(tree, expr, Rc::new(Token::Identifier("x".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Operator(Operators::Add)));
+            insert!(tree, expr, Rc::new(Token::Number(Numbers::from_str("1"))));
 
         test_tree!("number = x + 1;", match_assign_stmt, tree);
     }
@@ -1050,16 +1066,16 @@ mod test {
         // if-else
         let (mut tree, root_id) = tree!();
         let if_stmt = insert_type!(tree, root_id, IfStmt);
-            insert!(tree, if_stmt, Token::Identifier("x".to_owned()));
-            insert!(tree, if_stmt, Token::Operator(Operators::Equal));
-            insert!(tree, if_stmt, Token::Number(Numbers::from_str("1")));
+            insert!(tree, if_stmt, Rc::new(Token::Identifier("x".to_owned())));
+            insert!(tree, if_stmt, Rc::new(Token::Operator(Operators::Equal)));
+            insert!(tree, if_stmt, Rc::new(Token::Number(Numbers::from_str("1"))));
             let assign = insert_type!(tree, if_stmt, AssignStmt);
-                insert!(tree, assign, Token::Identifier("x".to_owned()));
-                insert!(tree, assign, Token::Number(Numbers::from_str("1")));
+                insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("1"))));
         let else_stmt = insert_type!(tree, root_id, ElseStmt);
             let assign = insert_type!(tree, else_stmt, AssignStmt);
-                insert!(tree, assign, Token::Identifier("x".to_owned()));
-                insert!(tree, assign, Token::Number(Numbers::from_str("2")));
+                insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("2"))));
 
         let stmt = "if(x==1)x=1;else\nx=2;";
         test_tree!(stmt, match_if_stmt, tree);
@@ -1067,20 +1083,20 @@ mod test {
         // if-if-else
         let (mut tree, root_id) = tree!();
         let if_stmt = insert_type!(tree, root_id, IfStmt);
-            insert!(tree, if_stmt, Token::Identifier("x".to_owned()));
-            insert!(tree, if_stmt, Token::Operator(Operators::Equal));
-            insert!(tree, if_stmt, Token::Number(Numbers::from_str("1")));
+            insert!(tree, if_stmt, Rc::new(Token::Identifier("x".to_owned())));
+            insert!(tree, if_stmt, Rc::new(Token::Operator(Operators::Equal)));
+            insert!(tree, if_stmt, Rc::new(Token::Number(Numbers::from_str("1"))));
             let inner_if = insert_type!(tree, if_stmt, IfStmt);
-                insert!(tree, inner_if, Token::Identifier("x".to_owned()));
-                insert!(tree, inner_if, Token::Operator(Operators::NotEqual));
-                insert!(tree, inner_if, Token::Number(Numbers::from_str("2")));
+                insert!(tree, inner_if, Rc::new(Token::Identifier("x".to_owned())));
+                insert!(tree, inner_if, Rc::new(Token::Operator(Operators::NotEqual)));
+                insert!(tree, inner_if, Rc::new(Token::Number(Numbers::from_str("2"))));
                 let assign = insert_type!(tree, inner_if, AssignStmt);
-                    insert!(tree, assign, Token::Identifier("x".to_owned()));
-                    insert!(tree, assign, Token::Number(Numbers::from_str("3")));
+                    insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                    insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("3"))));
             let else_stmt = insert_type!(tree, if_stmt, ElseStmt);
                 let assign = insert_type!(tree, else_stmt, AssignStmt);
-                    insert!(tree, assign, Token::Identifier("x".to_owned()));
-                    insert!(tree, assign, Token::Number(Numbers::from_str("2")));
+                    insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                    insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("2"))));
 
         let stmt = "if(x==1)if(x!=2)x=3;else\nx=2;";
         test_tree!(stmt, match_if_stmt, tree);

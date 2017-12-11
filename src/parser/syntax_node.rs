@@ -3,9 +3,11 @@ use token::Token;
 
 use id_tree::Tree;
 
+use std::rc::Rc;
+
 #[derive(Debug, PartialEq)]
 pub enum SyntaxType {
-    Terminal(Token),
+    Terminal(Rc<Token>),
     SyntaxTree,
     Struct,
     VariableDefine,

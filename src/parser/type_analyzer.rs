@@ -1,7 +1,7 @@
 
 use token::*;
-use token::Token::*;
-use lexer::Lexer;
+// use token::Token::*;
+// use lexer::Lexer;
 use parser::*;
 use parser::syntax_node::*;
 
@@ -18,8 +18,9 @@ impl<'t> TypeAnalyzer<'t> {
         }
     }
 
-    pub fn run(&mut self) {
-        println!("TypeAnalyzer Result:");
-        dump_tree(self.ast, self.ast.root_node_id().unwrap(), 0);
+    pub fn type_of(&self, node: &NodeId) -> Type {
+        match self.ast.get(node).unwrap() {
+            _ => Type::NoType,
+        }
     }
 }

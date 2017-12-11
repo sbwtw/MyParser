@@ -29,5 +29,4 @@ int main()
     let mut type_analyzer = TypeAnalyzer::new(parser.syntax_tree());
     println!();
     println!();
-    type_analyzer.run();
 }
