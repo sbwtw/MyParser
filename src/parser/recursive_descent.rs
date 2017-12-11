@@ -1010,7 +1010,7 @@ mod test {
         let expr = insert_type!(tree, root_id, Expr);
             insert!(tree, expr, Token::Identifier("c".to_owned()));
             insert!(tree, expr, Token::Operator(Operators::Add));
-            insert!(tree, expr, Token::Number("1".to_owned()));
+            insert!(tree, expr, Token::Number(Numbers::from_str("1")));
         insert!(tree, root_id, Token::Operator(Operators::LogicOr));
         let bool_expr = insert_type!(tree, root_id, BooleanExpr);
             insert!(tree, bool_expr, Token::Operator(Operators::LogicNot));
@@ -1037,7 +1037,7 @@ mod test {
             let expr = insert_type!(tree, assign, Expr);
             insert!(tree, expr, Token::Identifier("x".to_owned()));
             insert!(tree, expr, Token::Operator(Operators::Add));
-            insert!(tree, expr, Token::Number("1".to_owned()));
+            insert!(tree, expr, Token::Number(Numbers::from_str("1")));
 
         test_tree!("number = x + 1;", match_assign_stmt, tree);
     }
@@ -1052,14 +1052,14 @@ mod test {
         let if_stmt = insert_type!(tree, root_id, IfStmt);
             insert!(tree, if_stmt, Token::Identifier("x".to_owned()));
             insert!(tree, if_stmt, Token::Operator(Operators::Equal));
-            insert!(tree, if_stmt, Token::Number("1".to_owned()));
+            insert!(tree, if_stmt, Token::Number(Numbers::from_str("1")));
             let assign = insert_type!(tree, if_stmt, AssignStmt);
                 insert!(tree, assign, Token::Identifier("x".to_owned()));
-                insert!(tree, assign, Token::Number("1".to_owned()));
+                insert!(tree, assign, Token::Number(Numbers::from_str("1")));
         let else_stmt = insert_type!(tree, root_id, ElseStmt);
             let assign = insert_type!(tree, else_stmt, AssignStmt);
                 insert!(tree, assign, Token::Identifier("x".to_owned()));
-                insert!(tree, assign, Token::Number("2".to_owned()));
+                insert!(tree, assign, Token::Number(Numbers::from_str("2")));
 
         let stmt = "if(x==1)x=1;else\nx=2;";
         test_tree!(stmt, match_if_stmt, tree);
@@ -1069,18 +1069,18 @@ mod test {
         let if_stmt = insert_type!(tree, root_id, IfStmt);
             insert!(tree, if_stmt, Token::Identifier("x".to_owned()));
             insert!(tree, if_stmt, Token::Operator(Operators::Equal));
-            insert!(tree, if_stmt, Token::Number("1".to_owned()));
+            insert!(tree, if_stmt, Token::Number(Numbers::from_str("1")));
             let inner_if = insert_type!(tree, if_stmt, IfStmt);
                 insert!(tree, inner_if, Token::Identifier("x".to_owned()));
                 insert!(tree, inner_if, Token::Operator(Operators::NotEqual));
-                insert!(tree, inner_if, Token::Number("2".to_owned()));
+                insert!(tree, inner_if, Token::Number(Numbers::from_str("2")));
                 let assign = insert_type!(tree, inner_if, AssignStmt);
                     insert!(tree, assign, Token::Identifier("x".to_owned()));
-                    insert!(tree, assign, Token::Number("3".to_owned()));
+                    insert!(tree, assign, Token::Number(Numbers::from_str("3")));
             let else_stmt = insert_type!(tree, if_stmt, ElseStmt);
                 let assign = insert_type!(tree, else_stmt, AssignStmt);
                     insert!(tree, assign, Token::Identifier("x".to_owned()));
-                    insert!(tree, assign, Token::Number("2".to_owned()));
+                    insert!(tree, assign, Token::Number(Numbers::from_str("2")));
 
         let stmt = "if(x==1)if(x!=2)x=3;else\nx=2;";
         test_tree!(stmt, match_if_stmt, tree);

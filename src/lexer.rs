@@ -214,7 +214,7 @@ impl Lexer {
             }
         }
 
-        Ok(Some(Token::Number(buf)))
+        Ok(Some(Token::Number(Numbers::SignedInt(buf.parse::<isize>().unwrap()))))
     }
 
     fn parse_add(&mut self) -> LexerResult {
@@ -347,7 +347,7 @@ mod test {
         let mut lexer = Lexer::new(source.as_bytes());
         assert_eq!(
             Iterator::next(&mut lexer).unwrap(),
-            Token::Number("2".to_owned())
+            Token::Number(Numbers::from_str("2"))
         );
         assert_eq!(
             Iterator::next(&mut lexer).unwrap(),
@@ -355,7 +355,7 @@ mod test {
         );
         assert_eq!(
             Iterator::next(&mut lexer).unwrap(),
-            Token::Number("3".to_owned())
+            Token::Number(Numbers::from_str("3"))
         );
         assert_eq!(Iterator::next(&mut lexer), None);
     }

@@ -41,6 +41,21 @@ pub enum KeyWords {
     While,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Type {
+    NoType,
+    SignedShort,
+    UnsignedShort,
+    SignedInt,
+    UnsignedInt,
+    Float,
+    Double,
+    Void,
+    Class,
+    Func(Vec<Type>, Box<Type>),
+    Ptr(Box<Type>),
+}
+
 impl KeyWords {
     pub fn is_type(&self) -> bool {
         match self {
@@ -55,6 +70,13 @@ impl KeyWords {
             &KeyWords::Float => true,
             &KeyWords::Void => true,
             _ => false,
+        }
+    }
+
+    pub fn to_type(&self) -> Option<Type> {
+        match *self {
+            KeyWords::Int => Some(Type::SignedInt),
+            _ => None,
         }
     }
 }
@@ -97,6 +119,19 @@ pub enum Brackets {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub enum Numbers {
+    SignedInt(isize),
+    Float(f32),
+    Double(f64),
+}
+
+impl Numbers {
+    pub fn from_str<T: AsRef<str>>(s: T) -> Numbers {
+        Numbers::SignedInt(s.as_ref().parse::<isize>().unwrap())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     Arrow,
     Asterisk,
@@ -106,7 +141,7 @@ pub enum Token {
     Dot,
     KeyWord(KeyWords),
     LiteralStr(String),
-    Number(String),
+    Number(Numbers),
     Operator(Operators),
     Preprocessor(String),
     Space,
@@ -222,7 +257,7 @@ impl Display for Token {
             &Token::Dot => write!(f, "dot:\t\t '.'"),
             &Token::LiteralStr(ref s) => write!(f, "literal:\t {}", s),
             &Token::Bracket(ref b) => write!(f, "bracket:\t {:?}", b),
-            &Token::Number(ref n) => write!(f, "number:\t\t {}", n),
+            &Token::Number(ref n) => write!(f, "number:\t\t {:?}", n),
             &Token::Comment(ref s) => write!(f, "comment:\t {}", s),
             &Token::KeyWord(ref k) => write!(f, "keywords:\t {:?}", k),
             &Token::Operator(ref o) => write!(f, "operators:\t {:?}", o),
