@@ -2,38 +2,32 @@
 
 use token::*;
 
-use std::io;
-use std::io::Read;
-use std::iter::Iterator;
+use std::io::{Read, Bytes};
+use std::iter::{Iterator, Peekable};
 
-type LexerResult = io::Result<Option<Token>>;
+type LexerResult = Option<Token>;
 
-pub struct Lexer {
-    ch: Option<u8>,
-    iter: Box<Iterator<Item=io::Result<u8>>>,
+pub struct Lexer<I: Read> {
+    peeker: Peekable<Bytes<I>>,
 }
 
-impl Iterator for Lexer {
+impl<I: Read> Iterator for Lexer<I> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.parse() {
-            Ok(it) => it,
-            Err(e) => panic!("{:?}", e),
-        }
+        self.parse()
     }
 }
 
-impl Lexer {
-    pub fn new<R: Read + 'static>(rdr: R) -> Lexer {
+impl<I: Read> Lexer<I> {
+    pub fn new(r: I) -> Lexer<I> {
         Lexer {
-            ch: None,
-            iter: Box::new(rdr.bytes()),
+            peeker: r.bytes().peekable(),
         }
     }
 
     fn parse(&mut self) -> LexerResult {
-        while let Some(c) = self.peek()? {
+        while let Some(c) = self.peek() {
             return match c {
                 b'a'...b'z' | b'A'...b'Z' | b'_' => self.parse_string(),
                 b'0'...b'9' => self.parse_number(),
@@ -65,76 +59,76 @@ impl Lexer {
             };
         }
 
-        Ok(None)
+        None
     }
 
     fn convert_char(&mut self, r: Token) -> LexerResult {
         self.bump();
 
-        Ok(Some(r))
+        Some(r)
     }
 
     fn parse_greater(&mut self) -> LexerResult {
         self.bump();
 
-        return match self.peek()? {
+        return match self.peek() {
             Some(b'=') => self.convert_char(Token::Operator(Operators::GreaterEqual)),
-            _ => Ok(Some(Token::Operator(Operators::Greater))),
+            _ => Some(Token::Operator(Operators::Greater)),
         }
     }
 
     fn parse_less(&mut self) -> LexerResult {
         self.bump();
 
-        return match self.peek()? {
+        return match self.peek() {
             Some(b'=') => self.convert_char(Token::Operator(Operators::LessEqual)),
-            _ => Ok(Some(Token::Operator(Operators::Less))),
+            _ => Some(Token::Operator(Operators::Less)),
         }
     }
 
     fn parse_not(&mut self) -> LexerResult {
         self.bump();
 
-        return match self.peek()? {
+        return match self.peek() {
             Some(b'=') => self.convert_char(Token::Operator(Operators::NotEqual)),
-            _ => Ok(Some(Token::Operator(Operators::LogicNot))),
+            _ => Some(Token::Operator(Operators::LogicNot)),
         }
     }
 
     fn parse_and(&mut self) -> LexerResult {
         self.bump();
 
-        match self.peek()? {
+        match self.peek() {
             Some(b'&') => return self.convert_char(Token::Operator(Operators::LogicAnd)),
             _ => {},
         }
 
-        Ok(Some(Token::Operator(Operators::And)))
+        Some(Token::Operator(Operators::And))
     }
 
     fn parse_or(&mut self) -> LexerResult {
         self.bump();
 
-        match self.peek()? {
+        match self.peek() {
             Some(b'|') => return self.convert_char(Token::Operator(Operators::LogicOr)),
             _ => {},
         }
 
-        Ok(Some(Token::Operator(Operators::Or)))
+        Some(Token::Operator(Operators::Or))
     }
 
     fn parse_literal_str(&mut self) -> LexerResult {
         self.bump();
         let mut buf = "\"".to_owned();
 
-        while let Some(c) = self.next()? {
+        while let Some(c) = self.next() {
             match c {
                 b'\\' => {
-                    match self.next()? {
+                    match self.next() {
                         Some(b'n') => buf.push('\n'),
                         Some(b'"') => buf.push('"'),
                         Some(b'\\') => buf.push('\\'),
-                        _ => return Ok(None),
+                        _ => return None,
                     }
                 },
                 b'"' => {
@@ -145,46 +139,46 @@ impl Lexer {
             }
         }
 
-        Ok(None)
+        None
     }
 
     fn parse_minus(&mut self) -> LexerResult {
         self.bump();
 
-        match self.peek()? {
+        match self.peek() {
             Some(b'>') => self.convert_char(Token::Arrow),
             Some(b'-') => self.convert_char(Token::Operator(Operators::DoubleMinus)),
             Some(b'=') => self.convert_char(Token::Operator(Operators::MinusEqual)),
-            _ => Ok(Some(Token::Operator(Operators::Minus))),
+            _ => Some(Token::Operator(Operators::Minus)),
         }
     }
 
     fn parse_equal(&mut self) -> LexerResult {
         self.bump();
 
-        if let Some(b'=') = self.peek()? {
+        if let Some(b'=') = self.peek() {
             self.convert_char(Token::Operator(Operators::Equal))
         } else {
-            Ok(Some(Token::Operator(Operators::Assign)))
+            Some(Token::Operator(Operators::Assign))
         }
     }
 
     fn parse_preprocessor(&mut self) -> LexerResult {
         let mut buf = String::new();
 
-        while let Some(c) = self.next()? {
+        while let Some(c) = self.next() {
             match c {
                 b'\n' | b'\r' => break,
                 _ => buf.push(c as char),
             }
         }
 
-        Ok(Some(Token::Preprocessor(buf)))
+        Some(Token::Preprocessor(buf))
     }
 
     fn parse_string(&mut self) -> LexerResult {
         let mut buf = String::new();
-        while let Some(ch) = self.peek()? {
+        while let Some(ch) = self.peek() {
             if ch >= b'a' && ch <= b'z' || ch >= b'A' && ch <= b'Z' || ch >= b'0' && ch <= b'9' || ch == b'_' {
                 buf.push(ch as char);
                 self.bump();
@@ -196,16 +190,16 @@ impl Lexer {
         let buf = &buf.as_str();
 
         if is_keywords(buf) {
-            Ok(Some(Token::key_word(buf)))
+            Some(Token::key_word(buf))
         } else {
-            Ok(Some(Token::ident(buf)))
+            Some(Token::ident(buf))
         }
     }
 
     fn parse_number(&mut self) -> LexerResult {
         let mut buf = String::new();
 
-        while let Some(ch) = self.peek()? {
+        while let Some(ch) = self.peek() {
             if ch >= b'0' && ch <= b'9' {
                 buf.push(ch as char);
                 self.bump();
@@ -214,42 +208,42 @@ impl Lexer {
             }
         }
 
-        Ok(Some(Token::Number(Numbers::SignedInt(buf.parse::<isize>().unwrap()))))
+        Some(Token::Number(Numbers::SignedInt(buf.parse::<isize>().unwrap())))
     }
 
     fn parse_add(&mut self) -> LexerResult {
         self.bump();
 
-        match self.peek()? {
+        match self.peek() {
             Some(c) => match c {
                 b'+' => {
                     self.bump();
-                    Ok(Some(Token::Operator(Operators::DoubleAdd)))
+                    Some(Token::Operator(Operators::DoubleAdd))
                 }
-                _ => Ok(Some(Token::Operator(Operators::Add))),
+                _ => Some(Token::Operator(Operators::Add)),
             },
-            None => Ok(Some(Token::Operator(Operators::Add))),
+            None => Some(Token::Operator(Operators::Add)),
         }
     }
 
     fn parse_other(&mut self) -> LexerResult {
-        let ch = self.next().unwrap().unwrap() as char;
+        let ch = self.next().unwrap() as char;
 
         println!("not handled character: {}", ch);
 
-        Ok(Some(Token::comment(&ch.to_string())))
+        Some(Token::comment(&ch.to_string()))
     }
 
     fn parse_slash(&mut self) -> LexerResult {
         self.bump();
-        let ch = self.peek()?;
-        match ch {
+
+        match self.peek() {
             Some(c) => match c {
                 b'*' => self.parse_block_comment(),
                 b'/' => self.parse_line_comment(),
-                _ => Ok(Some(Token::Operator(Operators::Division))),
+                _ => Some(Token::Operator(Operators::Division)),
             },
-            None => return Ok(None),
+            None => return None,
         }
     }
 
@@ -257,12 +251,12 @@ impl Lexer {
         self.bump();
         let mut buf = "/*".to_owned();
 
-        while let Some(c) = self.next()? {
+        while let Some(c) = self.next() {
             match c {
                 b'*' => {
                     buf.push('*');
                     match self.peek()? {
-                        Some(b'/') => {
+                        b'/' => {
                             buf.push('/');
                             return self.convert_char(Token::Comment(buf));
                         }
@@ -273,12 +267,12 @@ impl Lexer {
             }
         }
 
-        Ok(None)
+        None
     }
 
     fn parse_line_comment(&mut self) -> LexerResult {
         let mut buf = "/".to_owned();
-        while let Some(ch) = self.next()? {
+        while let Some(ch) = self.next() {
             if ch == b'\n' {
                 break;
             }
@@ -286,35 +280,24 @@ impl Lexer {
             buf.push(ch as char);
         }
 
-        return Ok(Some(Token::Comment(buf)));
+        return Some(Token::Comment(buf));
     }
 
     fn bump(&mut self) {
         let _ = self.next();
     }
 
-    fn next(&mut self) -> io::Result<Option<u8>> {
-        match self.ch.take() {
-            Some(ch) => Ok(Some(ch)),
-            None => match self.iter.next() {
-                Some(Err(e)) => Err(e),
-                Some(Ok(ch)) => Ok(Some(ch)),
-                None => Ok(None),
-            },
+    fn next(&mut self) -> Option<u8> {
+        match self.peeker.next() {
+            Some(Ok(ch)) => Some(ch),
+            _ => None,
         }
     }
 
-    fn peek(&mut self) -> io::Result<Option<u8>> {
-        match self.ch {
-            Some(ch) => Ok(Some(ch)),
-            None => match self.iter.next() {
-                Some(Err(e)) => Err(e),
-                Some(Ok(ch)) => {
-                    self.ch = Some(ch);
-                    Ok(self.ch)
-                }
-                None => Ok(None),
-            },
+    fn peek(&mut self) -> Option<u8> {
+        match self.peeker.peek() {
+            Some(&Ok(ch)) => Some(ch),
+            _ => None,
         }
     }
 }
