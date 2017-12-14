@@ -5,23 +5,51 @@ use token::*;
 use std::io::{Read, Bytes};
 use std::iter::{Iterator, Peekable};
 
-type LexerResult = Option<Token>;
+type LexerResult = Result<Token, LexerError>;
 
 pub struct Lexer<I: Read> {
+    row: usize,
+    column: usize,
     peeker: Peekable<Bytes<I>>,
+}
+
+#[derive(Debug)]
+enum LexerError {
+    Success,
+    UnexpectEnd,
+    UnexpectedChar(char, Vec<char>),
 }
 
 impl<I: Read> Iterator for Lexer<I> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.parse()
+        match self.parse() {
+            Ok(tok) => Some(tok),
+            Err(LexerError::Success) => None,
+            Err(LexerError::UnexpectedChar(c, chars)) => {
+                println!("\nexpect one of [{}], but '{}'\nfounded at row {}, column {}",
+                    chars.iter().map(|c| format!("'{}'", c)).collect::<Vec<String>>().join(", "),
+                    c,
+                    self.row,
+                    self.column);
+                panic!("UnexpectedCharacter");
+            },
+            Err(e) => {
+                panic!("lexer panic at row = {}, column = {}, error = {:?}",
+                    self.row,
+                    self.column,
+                    e);
+            }
+        }
     }
 }
 
 impl<I: Read> Lexer<I> {
     pub fn new(r: I) -> Lexer<I> {
         Lexer {
+            row: 0,
+            column: 0,
             peeker: r.bytes().peekable(),
         }
     }
@@ -59,13 +87,13 @@ impl<I: Read> Lexer<I> {
             };
         }
 
-        None
+        Err(LexerError::Success)
     }
 
     fn convert_char(&mut self, r: Token) -> LexerResult {
         self.bump();
 
-        Some(r)
+        Ok(r)
     }
 
     fn parse_greater(&mut self) -> LexerResult {
@@ -73,7 +101,7 @@ impl<I: Read> Lexer<I> {
 
         return match self.peek() {
             Some(b'=') => self.convert_char(Token::Operator(Operators::GreaterEqual)),
-            _ => Some(Token::Operator(Operators::Greater)),
+            _ => Ok(Token::Operator(Operators::Greater)),
         }
     }
 
@@ -82,7 +110,7 @@ impl<I: Read> Lexer<I> {
 
         return match self.peek() {
             Some(b'=') => self.convert_char(Token::Operator(Operators::LessEqual)),
-            _ => Some(Token::Operator(Operators::Less)),
+            _ => Ok(Token::Operator(Operators::Less)),
         }
     }
 
@@ -91,7 +119,7 @@ impl<I: Read> Lexer<I> {
 
         return match self.peek() {
             Some(b'=') => self.convert_char(Token::Operator(Operators::NotEqual)),
-            _ => Some(Token::Operator(Operators::LogicNot)),
+            _ => Ok(Token::Operator(Operators::LogicNot)),
         }
     }
 
@@ -103,7 +131,7 @@ impl<I: Read> Lexer<I> {
             _ => {},
         }
 
-        Some(Token::Operator(Operators::And))
+        Ok(Token::Operator(Operators::And))
     }
 
     fn parse_or(&mut self) -> LexerResult {
@@ -114,7 +142,7 @@ impl<I: Read> Lexer<I> {
             _ => {},
         }
 
-        Some(Token::Operator(Operators::Or))
+        Ok(Token::Operator(Operators::Or))
     }
 
     fn parse_literal_str(&mut self) -> LexerResult {
@@ -128,7 +156,8 @@ impl<I: Read> Lexer<I> {
                         Some(b'n') => buf.push('\n'),
                         Some(b'"') => buf.push('"'),
                         Some(b'\\') => buf.push('\\'),
-                        _ => return None,
+                        Some(c) => return Err(LexerError::UnexpectedChar(c as char, vec!['n', '"', '\\'])),
+                        _ => break,
                     }
                 },
                 b'"' => {
@@ -139,7 +168,7 @@ impl<I: Read> Lexer<I> {
             }
         }
 
-        None
+        Err(LexerError::UnexpectEnd)
     }
 
     fn parse_minus(&mut self) -> LexerResult {
@@ -149,7 +178,7 @@ impl<I: Read> Lexer<I> {
             Some(b'>') => self.convert_char(Token::Arrow),
             Some(b'-') => self.convert_char(Token::Operator(Operators::DoubleMinus)),
             Some(b'=') => self.convert_char(Token::Operator(Operators::MinusEqual)),
-            _ => Some(Token::Operator(Operators::Minus)),
+            _ => Ok(Token::Operator(Operators::Minus)),
         }
     }
 
@@ -159,7 +188,7 @@ impl<I: Read> Lexer<I> {
         if let Some(b'=') = self.peek() {
             self.convert_char(Token::Operator(Operators::Equal))
         } else {
-            Some(Token::Operator(Operators::Assign))
+            Ok(Token::Operator(Operators::Assign))
         }
     }
 
@@ -173,7 +202,7 @@ impl<I: Read> Lexer<I> {
             }
         }
 
-        Some(Token::Preprocessor(buf))
+        Ok(Token::Preprocessor(buf))
     }
 
     fn parse_string(&mut self) -> LexerResult {
@@ -190,9 +219,9 @@ impl<I: Read> Lexer<I> {
         let buf = &buf.as_str();
 
         if is_keywords(buf) {
-            Some(Token::key_word(buf))
+            Ok(Token::key_word(buf))
         } else {
-            Some(Token::ident(buf))
+            Ok(Token::ident(buf))
         }
     }
 
@@ -208,7 +237,7 @@ impl<I: Read> Lexer<I> {
             }
         }
 
-        Some(Token::Number(Numbers::SignedInt(buf.parse::<isize>().unwrap())))
+        Ok(Token::Number(Numbers::SignedInt(buf.parse::<isize>().unwrap())))
     }
 
     fn parse_add(&mut self) -> LexerResult {
@@ -218,20 +247,20 @@ impl<I: Read> Lexer<I> {
             Some(c) => match c {
                 b'+' => {
                     self.bump();
-                    Some(Token::Operator(Operators::DoubleAdd))
+                    Ok(Token::Operator(Operators::DoubleAdd))
                 }
-                _ => Some(Token::Operator(Operators::Add)),
+                _ => Ok(Token::Operator(Operators::Add)),
             },
-            None => Some(Token::Operator(Operators::Add)),
+            None => Ok(Token::Operator(Operators::Add)),
         }
     }
 
     fn parse_other(&mut self) -> LexerResult {
         let ch = self.next().unwrap() as char;
 
-        println!("not handled character: {}", ch);
+        println!("not handled character at r = {}, c = {}: {}", self.row, self.column, ch);
 
-        Some(Token::comment(&ch.to_string()))
+        Ok(Token::comment(&ch.to_string()))
     }
 
     fn parse_slash(&mut self) -> LexerResult {
@@ -241,9 +270,9 @@ impl<I: Read> Lexer<I> {
             Some(c) => match c {
                 b'*' => self.parse_block_comment(),
                 b'/' => self.parse_line_comment(),
-                _ => Some(Token::Operator(Operators::Division)),
+                _ => Ok(Token::Operator(Operators::Division)),
             },
-            None => return None,
+            None => return Err(LexerError::UnexpectEnd),
         }
     }
 
@@ -255,8 +284,8 @@ impl<I: Read> Lexer<I> {
             match c {
                 b'*' => {
                     buf.push('*');
-                    match self.peek()? {
-                        b'/' => {
+                    match self.peek() {
+                        Some(b'/') => {
                             buf.push('/');
                             return self.convert_char(Token::Comment(buf));
                         }
@@ -267,7 +296,7 @@ impl<I: Read> Lexer<I> {
             }
         }
 
-        None
+        Err(LexerError::UnexpectEnd)
     }
 
     fn parse_line_comment(&mut self) -> LexerResult {
@@ -280,7 +309,7 @@ impl<I: Read> Lexer<I> {
             buf.push(ch as char);
         }
 
-        return Some(Token::Comment(buf));
+        return Ok(Token::Comment(buf));
     }
 
     fn bump(&mut self) {
@@ -289,7 +318,15 @@ impl<I: Read> Lexer<I> {
 
     fn next(&mut self) -> Option<u8> {
         match self.peeker.next() {
-            Some(Ok(ch)) => Some(ch),
+            Some(Ok(b'\n')) => {
+                self.row += 1;
+                self.column = 0;
+                Some(b'\n')
+            }
+            Some(Ok(ch)) => {
+                self.column += 1;
+                Some(ch)
+            },
             _ => None,
         }
     }
@@ -432,4 +469,12 @@ mod test {
         assert_eq!(Iterator::next(&mut lexer), None);
     }
 
+    #[test]
+    #[should_panic]
+    fn test_lexer_panic() {
+        let src = "/*asd";
+
+        let mut lexer = Lexer::new(src.as_bytes());
+        let _ = lexer.count();
+    }
 }
