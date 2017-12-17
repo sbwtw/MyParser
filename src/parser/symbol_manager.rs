@@ -33,11 +33,15 @@ impl SymbolManager {
 
     #[inline]
     pub fn create_scope(&mut self) {
+        trace!("create_scope");
+
         self.symbols.push(SymbolTable::new());
     }
 
     #[inline]
     pub fn destory_scope(&mut self) {
+        trace!("destory_scope");
+
         let _ = self.symbols.pop();
     }
 
@@ -47,6 +51,8 @@ impl SymbolManager {
         if tbl.contains_key(s) {
             return Err(tbl.get(s).unwrap())
         }
+
+        trace!("symbol added: `{}`", s);
 
         tbl.insert(s.to_owned(), id.clone());
         Ok(())

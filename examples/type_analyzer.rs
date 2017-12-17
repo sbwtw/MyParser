@@ -1,5 +1,6 @@
 
 extern crate parser;
+extern crate env_logger;
 
 use parser::lexer::*;
 use parser::parser::*;
@@ -7,14 +8,13 @@ use parser::parser::recursive_descent::*;
 use parser::parser::type_analyzer::*;
 
 fn main() {
+
+    env_logger::init().unwrap();
+
     let src = "
 int main()
 {
-    for (a = 0; a != 10; a = a + 1);
-    {
-        if (a == 0)
-            break;
-    }
+    int a;
 
     return 0;
 }

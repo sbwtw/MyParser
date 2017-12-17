@@ -239,7 +239,11 @@ impl RecursiveDescentParser {
         return None;
     }
 
-    // variable_define = type variable_list ;
+    fn match_variable_define_stmt(&mut self, root: &NodeId) -> ParserResult {
+        self.match_variable_define(root)
+    }
+
+    // variable_define = type variable_list
     fn match_variable_define(&mut self, root: &NodeId) -> ParserResult {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::VariableDefine);
@@ -247,8 +251,7 @@ impl RecursiveDescentParser {
         if let Some(t) = self.match_type() {
             insert!(self.tree, self_id, t);
 
-            if self.match_variable_list(&self_id) &&
-               self.term(Token::Semicolon) {
+            if self.match_variable_list(&self_id) {
                 return true;
             }
         }
@@ -261,7 +264,10 @@ impl RecursiveDescentParser {
     // variable_list = variable | variable , variable_list
     fn match_variable_list(&mut self, root: &NodeId) -> ParserResult {
         if let Some(v) = self.match_identifier() {
-            insert!(self.tree, root, v);
+            let id = insert!(self.tree, root, v.clone());
+            if let Identifier(ref s) = *v {
+                self.symbols.push_symbol(s, &id).expect("Symbol already exist");
+            }
         }
 
         if self.term(Token::Comma) {
@@ -274,6 +280,7 @@ impl RecursiveDescentParser {
     fn match_struct_define(&mut self, root: &NodeId) -> ParserResult {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::Struct);
+        self.symbols.create_scope();
 
         loop {
             if !self.term(Token::KeyWord(KeyWords::Struct)) { break; }
@@ -284,18 +291,21 @@ impl RecursiveDescentParser {
 
             if !self.term(Token::Bracket(Brackets::LeftCurlyBracket)) { break; }
 
-            while self.match_variable_define(&self_id) { }
+            while self.match_variable_define_stmt(&self_id) &&
+                  self.term(Token::Semicolon) { }
 
             if !self.term(Token::Bracket(Brackets::RightCurlyBracket)) ||
                !self.term(Token::Semicolon) {
                 break;
             }
 
+            self.symbols.destory_scope();
             return true;
         }
 
         self.current = cur;
         self.tree.remove_node(self_id, DropChildren).unwrap();
+        self.symbols.destory_scope();
         return false;
     }
 
@@ -418,7 +428,8 @@ impl RecursiveDescentParser {
     fn match_stmt_single(&mut self, root: &NodeId) -> ParserResult {
         self.match_assign_stmt(root) ||
         self.match_break_stmt(root) ||
-        self.match_return_stmt(root)
+        self.match_return_stmt(root) ||
+        self.match_variable_define_stmt(root)
     }
 
     // - `if_stmt`
@@ -981,13 +992,13 @@ mod test {
 
     #[test]
     fn test_variable_define() {
-        let tests = vec!["int number;", "short num0 ; ", "double\nd;"];
+        let tests = vec!["int number", "short num0 ", "double\nd"];
         test_func!(tests, match_variable_define);
     }
 
     #[test]
     fn test_variable_list() {
-        let tests = vec!["int a, b_, c;"];
+        let tests = vec!["int a, b_, c"];
         test_func!(tests, match_variable_define);
     }
 
