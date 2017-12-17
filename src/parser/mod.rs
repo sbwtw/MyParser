@@ -1,6 +1,7 @@
 pub mod recursive_descent;
 pub mod type_analyzer;
 mod syntax_node;
+mod symbol_manager;
 
 use id_tree::NodeId;
 use self::syntax_node::SyntaxTree;

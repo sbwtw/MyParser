@@ -3,6 +3,7 @@ use token::*;
 use token::Token::*;
 use lexer::Lexer;
 use parser::*;
+use parser::symbol_manager::*;
 use parser::syntax_node::*;
 
 use id_tree::*;
@@ -36,6 +37,7 @@ pub struct RecursiveDescentParser {
     tokens: Vec<Rc<Token>>,
     current: usize,
     tree: SyntaxTree,
+    symbols: SymbolManager,
 }
 
 impl RecursiveDescentParser {
@@ -51,6 +53,7 @@ impl RecursiveDescentParser {
                 .collect(),
             current: 0,
             tree: tree,
+            symbols: SymbolManager::new(),
         }
     }
 
@@ -66,11 +69,20 @@ impl RecursiveDescentParser {
 
     #[cfg(debug_assertions)]
     pub fn lexer_end(&self) -> bool {
-        self.current == self.tokens.len()
+        self.current == self.tokens.len() &&
+        self.symbols.scope_level() == 1
     }
 
     fn root_id(&self) -> NodeId {
         self.tree.root_node_id().unwrap().clone()
+    }
+
+    fn lookup_symbol<S: AsRef<str>>(&self, symbol: S) -> &SyntaxType {
+        let s = symbol.as_ref();
+        let node_id = self.symbols.lookup(s).expect(
+                        &format!("Symbol `{}` not declared yet!", s));
+
+        self.tree.get(node_id).unwrap().data()
     }
 
     /// bool_expr = bool_expr || bool_expr_and
