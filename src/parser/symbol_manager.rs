@@ -2,11 +2,31 @@
 use id_tree::NodeId;
 
 use std::collections::HashMap;
+use std::rc::Rc;
+use std::cell::RefCell;
 
 type SymbolTable = HashMap<String, NodeId>;
 
 pub struct SymbolManager {
     symbols: Vec<SymbolTable>,
+}
+
+/// Using RAII to manage symbol scope
+pub struct ScopeGuard {
+    symbol_manager: Rc<RefCell<SymbolManager>>,
+}
+
+impl ScopeGuard {
+    pub fn new(ptr: Rc<RefCell<SymbolManager>>) -> ScopeGuard {
+        ptr.borrow_mut().create_scope();
+        ScopeGuard { symbol_manager: ptr }
+    }
+}
+
+impl Drop for ScopeGuard {
+    fn drop(&mut self) {
+        self.symbol_manager.borrow_mut().destory_scope();
+    }
 }
 
 impl SymbolManager {
@@ -32,14 +52,14 @@ impl SymbolManager {
     }
 
     #[inline]
-    pub fn create_scope(&mut self) {
+    fn create_scope(&mut self) {
         trace!("create_scope");
 
         self.symbols.push(SymbolTable::new());
     }
 
     #[inline]
-    pub fn destory_scope(&mut self) {
+    fn destory_scope(&mut self) {
         trace!("destory_scope");
 
         let _ = self.symbols.pop();

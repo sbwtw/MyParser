@@ -12,6 +12,9 @@ fn main() {
     env_logger::init().unwrap();
 
     let src = "
+
+struct S { int a, b; };
+
 int main()
 {
     int a;

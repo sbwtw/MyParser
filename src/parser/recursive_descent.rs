@@ -12,6 +12,7 @@ use id_tree::RemoveBehavior::*;
 
 use std::io;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 type TokenResult = Option<Rc<Token>>;
 
@@ -37,7 +38,7 @@ pub struct RecursiveDescentParser {
     tokens: Vec<Rc<Token>>,
     current: usize,
     tree: SyntaxTree,
-    symbols: SymbolManager,
+    symbols: Rc<RefCell<SymbolManager>>,
 }
 
 impl RecursiveDescentParser {
@@ -53,7 +54,7 @@ impl RecursiveDescentParser {
                 .collect(),
             current: 0,
             tree: tree,
-            symbols: SymbolManager::new(),
+            symbols: Rc::new(RefCell::new(SymbolManager::new())),
         }
     }
 
@@ -70,7 +71,7 @@ impl RecursiveDescentParser {
     #[cfg(debug_assertions)]
     pub fn lexer_end(&self) -> bool {
         self.current == self.tokens.len() &&
-        self.symbols.scope_level() == 1
+        self.symbols.borrow().scope_level() == 1
     }
 
     fn root_id(&self) -> NodeId {
@@ -79,7 +80,9 @@ impl RecursiveDescentParser {
 
     fn lookup_symbol<S: AsRef<str>>(&self, symbol: S) -> &SyntaxType {
         let s = symbol.as_ref();
-        let node_id = self.symbols.lookup(s).expect(
+        let ptr = self.symbols.clone();
+        let b = ptr.borrow();
+        let node_id = b.lookup(s).expect(
                         &format!("Symbol `{}` not declared yet!", s));
 
         self.tree.get(node_id).unwrap().data()
@@ -266,7 +269,7 @@ impl RecursiveDescentParser {
         if let Some(v) = self.match_identifier() {
             let id = insert!(self.tree, root, v.clone());
             if let Identifier(ref s) = *v {
-                self.symbols.push_symbol(s, &id).expect("Symbol already exist");
+                self.symbols.borrow_mut().push_symbol(s, &id).expect("Symbol already exist");
             }
         }
 
@@ -280,7 +283,7 @@ impl RecursiveDescentParser {
     fn match_struct_define(&mut self, root: &NodeId) -> ParserResult {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::Struct);
-        self.symbols.create_scope();
+        let _symbol_scope = ScopeGuard::new(self.symbols.clone());
 
         loop {
             if !self.term(Token::KeyWord(KeyWords::Struct)) { break; }
@@ -299,13 +302,11 @@ impl RecursiveDescentParser {
                 break;
             }
 
-            self.symbols.destory_scope();
             return true;
         }
 
         self.current = cur;
         self.tree.remove_node(self_id, DropChildren).unwrap();
-        self.symbols.destory_scope();
         return false;
     }
 
