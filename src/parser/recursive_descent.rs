@@ -90,13 +90,13 @@ impl RecursiveDescentParser {
 
     /// bool_expr = bool_expr || bool_expr_and
     ///          -> bool_expr_and bool_expr_fix
-    fn match_bool_expr(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr(&mut self, root: &NodeId) -> bool {
         self.match_bool_expr_and(root) &&
         self.match_bool_expr_fix(root)
     }
 
     /// bool_expr_fix = || bool_expr_and bool_expr_fix | epsilon
-    fn match_bool_expr_fix(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_fix(&mut self, root: &NodeId) -> bool {
         if self.term(Token::Operator(Operators::LogicOr)) {
             let id = insert!(self.tree, root, Rc::new(Token::Operator(Operators::LogicOr)));
             let root_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
@@ -117,13 +117,13 @@ impl RecursiveDescentParser {
 
     /// bool_expr_and = bool_expr_and && bool_expr_equal
     ///              -> bool_expr_equal bool_expr_and_fix
-    fn match_bool_expr_and(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_and(&mut self, root: &NodeId) -> bool {
         self.match_bool_expr_equal(root) &&
         self.match_bool_expr_and_fix(root)
     }
 
     /// bool_expr_and_fix = && bool_expr_equal bool_expr_and_fix | epsilon
-    fn match_bool_expr_and_fix(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_and_fix(&mut self, root: &NodeId) -> bool {
         if self.term(Token::Operator(Operators::LogicAnd)) {
             let id = insert!(self.tree, root, Rc::new(Token::Operator(Operators::LogicAnd)));
             let root_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
@@ -144,13 +144,13 @@ impl RecursiveDescentParser {
 
     /// bool_expr_equal = bool_expr_equal equal_op bool_expr_cmp
     ///                -> bool_expr_cmp bool_expr_equal_fix
-    fn match_bool_expr_equal(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_equal(&mut self, root: &NodeId) -> bool {
         self.match_bool_expr_cmp(root) &&
         self.match_bool_expr_equal_fix(root)
     }
 
     /// bool_expr_equal_fix = equal_op bool_expr_cmp bool_expr_equal_fix | epsilon
-    fn match_bool_expr_equal_fix(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_equal_fix(&mut self, root: &NodeId) -> bool {
         if let Some(tok) = self.match_equal_op() {
             let id = insert!(self.tree, root, tok);
 
@@ -168,13 +168,13 @@ impl RecursiveDescentParser {
 
     /// bool_expr_cmp = bool_expr_cmp cmp_op bool_expr_factor
     ///              -> bool_expr_factor bool_expr_cmp_fix
-    fn match_bool_expr_cmp(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_cmp(&mut self, root: &NodeId) -> bool {
         self.match_bool_expr_factor(root) &&
         self.match_bool_expr_cmp_fix(root)
     }
 
     /// bool_expr_cmp_fix = cmp_op bool_expr_factor bool_expr_cmp_fix | epsilon
-    fn match_bool_expr_cmp_fix(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_cmp_fix(&mut self, root: &NodeId) -> bool {
         if let Some(tok) = self.match_cmp_op() {
             let id = insert!(self.tree, root, tok);
 
@@ -191,7 +191,7 @@ impl RecursiveDescentParser {
     }
 
     /// bool_expr_factor = !bool_expr | (bool_expr) | expr
-    fn match_bool_expr_factor(&mut self, root: &NodeId) -> ParserResult {
+    fn match_bool_expr_factor(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::BooleanExpr);
 
@@ -242,12 +242,12 @@ impl RecursiveDescentParser {
         return None;
     }
 
-    fn match_variable_define_stmt(&mut self, root: &NodeId) -> ParserResult {
+    fn match_variable_define_stmt(&mut self, root: &NodeId) -> bool {
         self.match_variable_define(root)
     }
 
     // variable_define = type variable_list
-    fn match_variable_define(&mut self, root: &NodeId) -> ParserResult {
+    fn match_variable_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::VariableDefine);
 
@@ -265,7 +265,7 @@ impl RecursiveDescentParser {
     }
 
     // variable_list = variable | variable , variable_list
-    fn match_variable_list(&mut self, root: &NodeId) -> ParserResult {
+    fn match_variable_list(&mut self, root: &NodeId) -> bool {
         if let Some(v) = self.match_identifier() {
             let id = insert!(self.tree, root, v.clone());
             if let Identifier(ref s) = *v {
@@ -280,7 +280,7 @@ impl RecursiveDescentParser {
         }
     }
 
-    fn match_struct_define(&mut self, root: &NodeId) -> ParserResult {
+    fn match_struct_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::Struct);
         let _symbol_scope = ScopeGuard::new(self.symbols.clone());
@@ -312,7 +312,7 @@ impl RecursiveDescentParser {
 
     //// expr = expr add_op expr_mul
     ///      -> expr_mul expr_fix
-    fn match_expr(&mut self, root: &NodeId) -> ParserResult {
+    fn match_expr(&mut self, root: &NodeId) -> bool {
         if self.match_expr_mul(root) {
             return self.match_expr_fix(root);
         }
@@ -321,7 +321,7 @@ impl RecursiveDescentParser {
     }
 
     /// expr_fix = add_op expt_mul expr_fix | epsilon
-    fn match_expr_fix(&mut self, root: &NodeId) -> ParserResult {
+    fn match_expr_fix(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
 
         loop {
@@ -350,7 +350,7 @@ impl RecursiveDescentParser {
 
     /// expr_mul = expr_mul mul_op expr_factor
     ///         -> expr_factor expr_mul_fix
-    fn match_expr_mul(&mut self, root: &NodeId) -> ParserResult {
+    fn match_expr_mul(&mut self, root: &NodeId) -> bool {
         if self.match_expr_factor(root) {
             return self.match_expr_mul_fix(root);
         }
@@ -359,7 +359,7 @@ impl RecursiveDescentParser {
     }
 
     /// expr_mul_fix = mul_op expr_factor expr_mul_fix | epsilon
-    fn match_expr_mul_fix(&mut self, root: &NodeId) -> ParserResult {
+    fn match_expr_mul_fix(&mut self, root: &NodeId) -> bool {
         if let Some(tok) = self.match_mul_op() {
             insert!(self.tree, root, tok);
 
@@ -380,7 +380,7 @@ impl RecursiveDescentParser {
     }
 
     /// expr_factor = (expr) | ident
-    fn match_expr_factor(&mut self, root: &NodeId) -> ParserResult {
+    fn match_expr_factor(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
 
         loop {
@@ -408,7 +408,7 @@ impl RecursiveDescentParser {
     }
 
     // - `stmt_factor`
-    fn match_stmt(&mut self, root: &NodeId) -> ParserResult {
+    fn match_stmt(&mut self, root: &NodeId) -> bool {
         self.match_stmt_factor(root)
     }
 
@@ -416,7 +416,7 @@ impl RecursiveDescentParser {
     // - `stmt_block`
     // - `stmt_control`
     // - `;`
-    fn match_stmt_factor(&mut self, root: &NodeId) -> ParserResult {
+    fn match_stmt_factor(&mut self, root: &NodeId) -> bool {
         self.match_stmt_block(root) ||
         self.match_stmt_control(root) ||
         self.match_stmt_single(root) && self.term(Token::Semicolon) ||
@@ -426,7 +426,7 @@ impl RecursiveDescentParser {
     // - `assign_stmt`
     // - `break_stmt`
     // - `return_stmt`
-    fn match_stmt_single(&mut self, root: &NodeId) -> ParserResult {
+    fn match_stmt_single(&mut self, root: &NodeId) -> bool {
         self.match_assign_stmt(root) ||
         self.match_break_stmt(root) ||
         self.match_return_stmt(root) ||
@@ -436,19 +436,19 @@ impl RecursiveDescentParser {
     // - `if_stmt`
     // - `while_loop`
     // - `for_loop`
-    fn match_stmt_control(&mut self, root: &NodeId) -> ParserResult {
+    fn match_stmt_control(&mut self, root: &NodeId) -> bool {
         self.match_if_stmt(root) ||
         self.match_while_loop(root) ||
         self.match_for_loop(root)
     }
 
-    fn match_stmt_list(&mut self, root: &NodeId) -> ParserResult {
+    fn match_stmt_list(&mut self, root: &NodeId) -> bool {
         while self.match_stmt(root) {}
 
         true
     }
 
-    fn match_stmt_block(&mut self, root: &NodeId) -> ParserResult {
+    fn match_stmt_block(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::StmtBlock);
 
@@ -471,7 +471,7 @@ impl RecursiveDescentParser {
     }
 
     // `for` `(` `expr_opt` `;` `expr_opt` `;` `expr_opt` `)` `stmt`
-    fn match_for_loop(&mut self, root: &NodeId) -> ParserResult {
+    fn match_for_loop(&mut self, root: &NodeId) -> bool {
 
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::ForLoop);
@@ -512,7 +512,7 @@ impl RecursiveDescentParser {
     }
 
     // `while` `(` `bool_expr` `)` `stmt`
-    fn match_while_loop(&mut self, root: &NodeId) -> ParserResult {
+    fn match_while_loop(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::WhileLoop);
 
@@ -541,7 +541,7 @@ impl RecursiveDescentParser {
     }
 
     // assign_stmt = left_value = right_value
-    fn match_assign_stmt(&mut self, root: &NodeId) -> ParserResult {
+    fn match_assign_stmt(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::AssignStmt);
 
@@ -564,7 +564,7 @@ impl RecursiveDescentParser {
     }
 
     // if_stmt = if ( bool_expr ) stmt else stmt
-    fn match_if_stmt(&mut self, root: &NodeId) -> ParserResult {
+    fn match_if_stmt(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
 
         loop {
@@ -604,7 +604,7 @@ impl RecursiveDescentParser {
     }
 
     // `return` `return_expr`
-    fn match_return_stmt(&mut self, root: &NodeId) -> ParserResult {
+    fn match_return_stmt(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::ReturnStmt);
 
@@ -621,7 +621,7 @@ impl RecursiveDescentParser {
     }
 
     // `break`
-    fn match_break_stmt(&mut self, root: &NodeId) -> ParserResult {
+    fn match_break_stmt(&mut self, root: &NodeId) -> bool {
         if self.term(Token::KeyWord(KeyWords::Break)) {
             insert_type!(self.tree, root, SyntaxType::BreakStmt);
             return true
@@ -632,14 +632,14 @@ impl RecursiveDescentParser {
 
     // - `bool_expr`
     // - `epsilon`
-    fn match_return_type(&mut self, root: &NodeId) -> ParserResult {
+    fn match_return_type(&mut self, root: &NodeId) -> bool {
         self.match_bool_expr(root);
 
         true
     }
 
     // left_value = ident
-    fn match_left_value(&mut self, root: &NodeId) -> ParserResult {
+    fn match_left_value(&mut self, root: &NodeId) -> bool {
         if let Some(id) = self.match_identifier() {
             insert!(self.tree, root, id);
 
@@ -649,12 +649,12 @@ impl RecursiveDescentParser {
     }
 
     // right_value = bool_expr
-    fn match_right_value(&mut self, root: &NodeId) -> ParserResult {
+    fn match_right_value(&mut self, root: &NodeId) -> bool {
         self.match_bool_expr(root)
     }
 
     // `func_ret_type` `func_name` `(` `func_arg_list` `)` `;`
-    fn match_function_declare(&mut self, root: &NodeId) -> ParserResult {
+    fn match_function_declare(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::FuncDeclare);
 
@@ -685,7 +685,7 @@ impl RecursiveDescentParser {
     }
 
     // - `func_ret_type` `func_name` `(` `func_arg_list` `)` `{` `func_body` `}`
-    fn match_function_define(&mut self, root: &NodeId) -> ParserResult {
+    fn match_function_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::FuncDefine);
 
@@ -722,7 +722,7 @@ impl RecursiveDescentParser {
 
     // - `func_arg` `func_arg_list_tail`
     // - `epsilon`
-    fn match_func_arg_list(&mut self, root: &NodeId) -> ParserResult {
+    fn match_func_arg_list(&mut self, root: &NodeId) -> bool {
 
         if self.match_func_arg(root) {
             return self.match_func_arg_list_tail(root);
@@ -733,7 +733,7 @@ impl RecursiveDescentParser {
 
     // - `,` `func_arg` `func_arg_list_tail`
     // - `epsilon`
-    fn match_func_arg_list_tail(&mut self, root: &NodeId) -> ParserResult {
+    fn match_func_arg_list_tail(&mut self, root: &NodeId) -> bool {
 
         if self.term(Token::Comma) {
             return self.match_func_arg(root) &&
@@ -744,7 +744,7 @@ impl RecursiveDescentParser {
     }
 
     // `func_arg_type` `func_arg_name`
-    fn match_func_arg(&mut self, root: &NodeId) -> ParserResult {
+    fn match_func_arg(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::FuncArg);
 
@@ -870,7 +870,7 @@ impl RecursiveDescentParser {
         return Some(self.tokens[self.current].clone())
     }
 
-    fn term(&mut self, tok: Token) -> ParserResult {
+    fn term(&mut self, tok: Token) -> bool {
 
         if self.current >= self.tokens.len() {
             return false;
@@ -901,14 +901,16 @@ impl Parser for RecursiveDescentParser {
         let mut last_pos = self.tokens.len();
 
         loop {
-            if self.current == self.tokens.len() { return true; }
-            if self.current == last_pos { return false; }
+            if self.current == self.tokens.len() { break; }
+            if self.current == last_pos { return Err(ParseErrInfo { err_type: ParseError::SyntaxError } ); }
             last_pos = self.current;
 
             self.match_struct_define(id);
             self.match_function_define(id);
             self.match_function_declare(id);
         }
+
+        Ok(())
     }
 
     fn syntax_tree(&self) -> &SyntaxTree {

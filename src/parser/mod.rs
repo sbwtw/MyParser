@@ -6,7 +6,17 @@ mod symbol_manager;
 use id_tree::NodeId;
 use self::syntax_node::SyntaxTree;
 
-type ParserResult = bool;
+#[derive(Debug)]
+pub enum ParseError {
+    SyntaxError,
+}
+
+#[derive(Debug)]
+pub struct ParseErrInfo {
+    err_type: ParseError,
+}
+
+type ParserResult = Result<(), ParseErrInfo>;
 
 pub trait Parser {
     fn run(&mut self) -> ParserResult;
@@ -59,7 +69,7 @@ mod test {
                     let mut f = File::open(entry.path()).unwrap();
                     let mut parser = RecursiveDescentParser::new(Lexer::new(f));
 
-                    assert!(parser.run());
+                    assert!(parser.run().is_ok());
 
                     // TODO: compare with abstract syntax tree dump.
                 }

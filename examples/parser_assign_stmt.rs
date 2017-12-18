@@ -22,6 +22,6 @@ int main()
 
     println!("\n{}\n", src);
 
-    println!("result: {}\n", parser.run());
+    println!("result: {:?}\n", parser.run());
     parser.dump();
 }

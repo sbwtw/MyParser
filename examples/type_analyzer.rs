@@ -26,7 +26,7 @@ int main()
 
     println!("\n{}\n", src);
 
-    println!("result: {}\n", parser.run());
+    println!("result: {:?}\n", parser.run());
     parser.dump();
 
     let mut type_analyzer = TypeAnalyzer::new(parser.syntax_tree());
