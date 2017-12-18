@@ -9,6 +9,7 @@ type SymbolTable = HashMap<String, NodeId>;
 
 pub struct SymbolManager {
     symbols: Vec<SymbolTable>,
+    scopes: Vec<String>,
 }
 
 /// Using RAII to manage symbol scope
@@ -33,11 +34,16 @@ impl SymbolManager {
     pub fn new() -> SymbolManager {
         SymbolManager {
             symbols: vec![SymbolTable::new()],
+            scopes: vec![String::new()],
         }
     }
 
     pub fn scope_level(&self) -> usize {
         self.symbols.len()
+    }
+
+    fn scope_str(&self) -> String {
+        self.scopes.join("::")
     }
 
     pub fn lookup<S: AsRef<str>>(&self, symbol: S) -> Option<&NodeId> {

@@ -9,7 +9,7 @@ use std::rc::Rc;
 pub enum SyntaxType {
     Terminal(Rc<Token>),
     SyntaxTree,
-    Struct,
+    StructDefine,
     VariableDefine,
     Expr,
     BooleanExpr,

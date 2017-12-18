@@ -3,7 +3,7 @@ use token::*;
 use token::Token::*;
 use lexer::Lexer;
 use parser::*;
-use parser::symbol_manager::*;
+use parser::symbol_checker::*;
 use parser::syntax_node::*;
 
 use id_tree::*;
@@ -12,7 +12,6 @@ use id_tree::RemoveBehavior::*;
 
 use std::io;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 type TokenResult = Option<Rc<Token>>;
 
@@ -38,7 +37,6 @@ pub struct RecursiveDescentParser {
     tokens: Vec<Rc<Token>>,
     current: usize,
     tree: SyntaxTree,
-    symbols: Rc<RefCell<SymbolManager>>,
 }
 
 impl RecursiveDescentParser {
@@ -54,7 +52,6 @@ impl RecursiveDescentParser {
                 .collect(),
             current: 0,
             tree: tree,
-            symbols: Rc::new(RefCell::new(SymbolManager::new())),
         }
     }
 
@@ -70,22 +67,11 @@ impl RecursiveDescentParser {
 
     #[cfg(debug_assertions)]
     pub fn lexer_end(&self) -> bool {
-        self.current == self.tokens.len() &&
-        self.symbols.borrow().scope_level() == 1
+        self.current == self.tokens.len()
     }
 
     fn root_id(&self) -> NodeId {
         self.tree.root_node_id().unwrap().clone()
-    }
-
-    fn lookup_symbol<S: AsRef<str>>(&self, symbol: S) -> &SyntaxType {
-        let s = symbol.as_ref();
-        let ptr = self.symbols.clone();
-        let b = ptr.borrow();
-        let node_id = b.lookup(s).expect(
-                        &format!("Symbol `{}` not declared yet!", s));
-
-        self.tree.get(node_id).unwrap().data()
     }
 
     /// bool_expr = bool_expr || bool_expr_and
@@ -267,10 +253,7 @@ impl RecursiveDescentParser {
     // variable_list = variable | variable , variable_list
     fn match_variable_list(&mut self, root: &NodeId) -> bool {
         if let Some(v) = self.match_identifier() {
-            let id = insert!(self.tree, root, v.clone());
-            if let Identifier(ref s) = *v {
-                self.symbols.borrow_mut().push_symbol(s, &id).expect("Symbol already exist");
-            }
+            insert!(self.tree, root, v.clone());
         }
 
         if self.term(Token::Comma) {
@@ -282,8 +265,7 @@ impl RecursiveDescentParser {
 
     fn match_struct_define(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
-        let self_id = insert_type!(self.tree, root, SyntaxType::Struct);
-        let _symbol_scope = ScopeGuard::new(self.symbols.clone());
+        let self_id = insert_type!(self.tree, root, SyntaxType::StructDefine);
 
         loop {
             if !self.term(Token::KeyWord(KeyWords::Struct)) { break; }
@@ -893,6 +875,11 @@ impl RecursiveDescentParser {
 
         return Some(&self.tokens[self.current]);
     }
+
+    // symbols check
+    fn symbols_check(&mut self) -> ParserResult {
+        Ok(())
+    }
 }
 
 impl Parser for RecursiveDescentParser {
@@ -902,7 +889,12 @@ impl Parser for RecursiveDescentParser {
 
         loop {
             if self.current == self.tokens.len() { break; }
-            if self.current == last_pos { return Err(ParseErrInfo { err_type: ParseError::SyntaxError } ); }
+            if self.current == last_pos {
+                return Err(ParseErrInfo {
+                        err_type: ParseError::SyntaxError
+                       });
+            }
+
             last_pos = self.current;
 
             self.match_struct_define(id);
@@ -910,7 +902,7 @@ impl Parser for RecursiveDescentParser {
             self.match_function_declare(id);
         }
 
-        Ok(())
+        SymbolChecker::new(&mut self.tree).check()
     }
 
     fn syntax_tree(&self) -> &SyntaxTree {
@@ -927,28 +919,12 @@ mod test {
     use parser::recursive_descent::*;
     use parser::syntax_node::SyntaxType::*;
 
-    trait TestResult {
-        fn ok(&self) -> bool;
-    }
-
-    impl TestResult for bool {
-        fn ok(&self) -> bool { *self }
-    }
-
-    impl<T> TestResult for Option<T> {
-        fn ok(&self) -> bool { self.is_some() }
-    }
-
-    impl<V, E> TestResult for Result<V, E> {
-        fn ok(&self) -> bool { self.is_ok() }
-    }
-
     macro_rules! test_func {
         ($tests: tt, $func: ident) => {
             for test in $tests {
                 let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
                 let id = parser.root_id();
-                assert!(parser.$func(&id).ok() && parser.lexer_end());
+                assert!(parser.$func(&id) && parser.lexer_end());
             }
         };
         ($tests: tt, $func: ident, $($r: tt)+) => {

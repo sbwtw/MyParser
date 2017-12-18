@@ -2,6 +2,7 @@ pub mod recursive_descent;
 pub mod type_analyzer;
 mod syntax_node;
 mod symbol_manager;
+mod symbol_checker;
 
 use id_tree::NodeId;
 use self::syntax_node::SyntaxTree;
@@ -9,6 +10,7 @@ use self::syntax_node::SyntaxTree;
 #[derive(Debug)]
 pub enum ParseError {
     SyntaxError,
+    UndefinedSymbol,
 }
 
 #[derive(Debug)]
