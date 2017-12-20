@@ -10,6 +10,8 @@ use self::syntax_node::SyntaxTree;
 #[derive(Debug)]
 pub enum ParseError {
     SyntaxError,
+    SemanticError,
+    MultiDefineError,
     UndefinedSymbol,
 }
 

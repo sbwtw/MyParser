@@ -15,12 +15,8 @@ fn main() {
 
 struct S { int a, b; };
 
-int main()
-{
-    int a;
+struct S1 { double b; int b; };
 
-    return 0;
-}
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
 
