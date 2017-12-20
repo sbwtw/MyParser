@@ -1,5 +1,20 @@
 # The Lexer & Parser for C-Language written in Rust [![Build Status](https://travis-ci.org/sbwtw/MyParser.svg?branch=master)](https://travis-ci.org/sbwtw/MyParser)
 
+## Goals
+- [x] 词法分析
+- [x] 基于递归下降的语法分析
+- [ ] 基于`LL(1)`的语法分析
+- [x] 抽象语法树`AST`的生成
+- [ ] 基于`AST`的程序优化
+- [x] 符号检查
+- [ ] 类型检查与类型推导
+- [ ] 基于常量传递的表达式优化
+- [ ] 基于数学原理的表达式优化
+- [ ] LLVM JIT 即时编译
+- [ ] LLVM IR 中间代码生成
+- [ ] 三元式生成
+- [ ] 目标代码生成
+
 ## Examples
 Print Token List:
 ```
