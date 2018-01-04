@@ -41,19 +41,6 @@ impl<'t> SymbolChecker<'t> {
         Ok(())
     }
 
-    fn push_identifier(&self, id: &NodeId) -> ParserResult {
-        match *self.token(id).unwrap() {
-            Token::Identifier(ref ident) => {
-                if self.symbols.borrow_mut().push_symbol(ident, id).is_err() {
-                    return error!(MultiDefineError);
-                }
-            },
-            _ => unreachable!(),
-        }
-
-        Ok(())
-    }
-
     fn check_subtree(&self, root_id: &NodeId) -> ParserResult {
         for id in self.ast.children_ids(&root_id).unwrap() {
             match self.ast.get(id).unwrap().data() {
@@ -62,6 +49,19 @@ impl<'t> SymbolChecker<'t> {
                 &SyntaxType::FuncDeclare => self.check_function(id)?,
                 t => println!("unhandled: {:?}", t),
             }
+        }
+
+        Ok(())
+    }
+
+    fn push_identifier(&self, id: &NodeId) -> ParserResult {
+        match *self.token(id).unwrap() {
+            Token::Identifier(ref ident) => {
+                if self.symbols.borrow_mut().push_symbol(ident, id).is_err() {
+                    return error!(MultiDefineError);
+                }
+            },
+            _ => unreachable!(),
         }
 
         Ok(())
@@ -79,6 +79,7 @@ impl<'t> SymbolChecker<'t> {
         Ok(())
     }
 
+    // check a variable define stmt, if variable already defined, return error.
     fn check_variable_define(&self, root_id: &NodeId) -> ParserResult {
         for id in self.ast.children_ids(root_id).unwrap() {
             match *self.token(id).unwrap() {
@@ -104,5 +105,34 @@ impl<'t> SymbolChecker<'t> {
 
     fn scope_guard(&self) -> ScopeGuard {
         ScopeGuard::new(self.symbols.clone())
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use parser::*;
+    use parser::recursive_descent::*;
+    use lexer::*;
+
+    macro_rules! test_symbol_checker {
+        ($code: ident, $($r: tt)+) => {
+            let mut parser = RecursiveDescentParser::new(Lexer::new($code.as_bytes()));
+            assert!(matches!(parser.run(), $($r)+));
+        };
+    }
+
+    #[test]
+    fn test_check_struct() {
+        let tests = vec!["struct S { int a; double b; };"];
+
+        for test in tests {
+            test_symbol_checker!(test, Ok(()));
+        }
+
+        let failed_tests = vec!["struct S { int a; double a; };"];
+        for failed in failed_tests {
+            test_symbol_checker!(failed, Err(_));
+        }
     }
 }
