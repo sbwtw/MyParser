@@ -42,21 +42,14 @@ impl<'t> SymbolChecker<'t> {
     }
 
     fn push_identifier(&self, id: &NodeId) -> ParserResult {
-        match self.ast.get(id).unwrap().data() {
-            &SyntaxType::Terminal(ref tok) => {
-                match **tok {
-                    Token::Identifier(ref i) => {
-                        match self.symbols.borrow_mut().push_symbol(i, id) {
-                            Err(_) => return error!(MultiDefineError),
-                            _ => {},
-                        }
-                    },
-                    _ =>
-                        return error!(SemanticError),
+        match *self.token(id).unwrap() {
+            Token::Identifier(ref ident) => {
+                if self.symbols.borrow_mut().push_symbol(ident, id).is_err() {
+                    return error!(MultiDefineError);
                 }
             },
-            _ => return error!(SemanticError),
-        };
+            _ => unreachable!(),
+        }
 
         Ok(())
     }
@@ -78,7 +71,7 @@ impl<'t> SymbolChecker<'t> {
         let ids: Vec<&NodeId> = self.ast.children_ids(&root_id).unwrap().collect();
         if ids.len() == 2 { self.push_identifier(ids[0])?; }
 
-        let _symbol_guard = ScopeGuard::new(self.symbols.clone());
+        let _symbol_guard = self.scope_guard();
         for i in 1..ids.len() {
             self.check_variable_define(ids[i])?;
         }
@@ -88,19 +81,11 @@ impl<'t> SymbolChecker<'t> {
 
     fn check_variable_define(&self, root_id: &NodeId) -> ParserResult {
         for id in self.ast.children_ids(root_id).unwrap() {
-            match self.ast.get(id).unwrap().data() {
-                &SyntaxType::Terminal(ref tok) => {
-                    match **tok {
-                        Token::Identifier(_) => {
-                            self.push_identifier(id)?;
-                        },
-                        Token::KeyWord(_) => {},
-                        _ =>
-                            return error!(SemanticError),
-                    }
-                },
+            match *self.token(id).unwrap() {
+                Token::Identifier(_) => self.push_identifier(id)?,
+                Token::KeyWord(_) => {},
                 _ => return error!(SemanticError),
-            };
+            }
         }
 
         Ok(())
@@ -110,5 +95,14 @@ impl<'t> SymbolChecker<'t> {
         let _symbol_guard = ScopeGuard::new(self.symbols.clone());
 
         Ok(())
+    }
+
+    #[inline]
+    fn token(&self, node_id: &NodeId) -> Option<Rc<Token>> {
+        self.ast.get(node_id).unwrap().data().token()
+    }
+
+    fn scope_guard(&self) -> ScopeGuard {
+        ScopeGuard::new(self.symbols.clone())
     }
 }

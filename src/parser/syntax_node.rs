@@ -28,3 +28,12 @@ pub enum SyntaxType {
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;
+
+impl SyntaxType {
+    pub fn token(&self) -> Option<Rc<Token>> {
+        match *self {
+            SyntaxType::Terminal(ref t) => Some(t.clone()),
+            _ => None,
+        }
+    }
+}
