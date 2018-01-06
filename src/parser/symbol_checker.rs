@@ -42,11 +42,11 @@ impl<'t> SymbolChecker<'t> {
     }
 
     fn check_subtree(&self, root_id: &NodeId) -> ParserResult {
-        for id in self.ast.children_ids(&root_id).unwrap() {
+        for id in self.children_ids(root_id) {
             match self.ast.get(id).unwrap().data() {
                 &SyntaxType::StructDefine => self.check_struct(id)?,
                 &SyntaxType::FuncDefine |
-                &SyntaxType::FuncDeclare => self.check_function(id)?,
+                &SyntaxType::FuncDeclare => self.check_func(id)?,
                 t => println!("unhandled: {:?}", t),
             }
         }
@@ -68,7 +68,7 @@ impl<'t> SymbolChecker<'t> {
     }
 
     fn check_struct(&self, root_id: &NodeId) -> ParserResult {
-        let ids: Vec<&NodeId> = self.ast.children_ids(&root_id).unwrap().collect();
+        let ids = self.children_ids(root_id);
         if ids.len() == 2 { self.push_identifier(ids[0])?; }
 
         let _symbol_guard = self.scope_guard();
@@ -92,17 +92,50 @@ impl<'t> SymbolChecker<'t> {
         Ok(())
     }
 
-    fn check_function(&self, id: &NodeId) -> ParserResult {
-        let _symbol_guard = ScopeGuard::new(self.symbols.clone());
+    fn check_func(&self, id: &NodeId) -> ParserResult {
+        let ids = self.children_ids(&id);
+        // check function name, function return type is index 0.
+        self.push_identifier(ids[1])?;
+
+        let _symbol_guard = self.scope_guard();
+
+        // check function arguments
+        let mut index = 2;
+        while index < ids.len() {
+            match self.data(ids[index]) {
+                &SyntaxType::FuncArg => self.check_func_arg(ids[index])?,
+                _ => break,
+            }
+
+            index += 1;
+        }
+
+        Ok(())
+    }
+
+    fn check_func_arg(&self, id: &NodeId) -> ParserResult {
+        let ids = self.children_ids(id);
+        self.push_identifier(ids[1])?;
 
         Ok(())
     }
 
     #[inline]
     fn token(&self, node_id: &NodeId) -> Option<Rc<Token>> {
-        self.ast.get(node_id).unwrap().data().token()
+        self.data(node_id).token()
     }
 
+    #[inline]
+    fn data(&self, node_id: &NodeId) -> &SyntaxType {
+        self.ast.get(node_id).unwrap().data()
+    }
+
+    #[inline]
+    fn children_ids(&self, node_id: &NodeId) -> Vec<&NodeId> {
+        self.ast.children_ids(&node_id).unwrap().collect()
+    }
+
+    #[inline]
     fn scope_guard(&self) -> ScopeGuard {
         ScopeGuard::new(self.symbols.clone())
     }
