@@ -10,61 +10,13 @@
 - [ ] 类型检查与类型推导
 - [ ] 基于常量传递的表达式优化
 - [ ] 基于数学原理的表达式优化
-- [ ] LLVM JIT 即时编译
-- [ ] LLVM IR 中间代码生成
+- [ ] `LLVM IR`中间代码生成
+- [ ] 利用`LLVM`进行`JIT`即时编译
 - [ ] 三元式生成
 - [ ] 目标代码生成
 
 ## Examples
-Print Token List:
-```
-    let source = "
-#include <iostream.h>
-int main()
-{
-    int num = 1;
-    if (num == 0)
-        return 0;
-    else
-        return 1;
-}
-".to_owned();
-
-    let mut lexer = Lexer::new(source.as_bytes());
-    while let Some(tok) = lexer.next() {
-        println!("{:?}", tok),
-    }
-```
-The output is:
-```
-Preprocessor("#include <iostream.h>")
-KeyWord(Int)
-Variable("main")
-Bracket(LeftParenthesis)
-Bracket(RightParenthesis)
-Bracket(LeftCurlyBracket)
-KeyWord(Int)
-Variable("num")
-Operator(Assign)
-Number("1")
-Semicolon
-KeyWord(If)
-Bracket(LeftParenthesis)
-Variable("num")
-Operator(Equal)
-Number("0")
-Bracket(RightParenthesis)
-KeyWord(Return)
-Number("0")
-Semicolon
-KeyWord(Else)
-KeyWord(Return)
-Number("1")
-Semicolon
-Bracket(RightCurlyBracket)
-```
-
-Print abstract syntax tree
+使用递归下降分析器输出抽象语法树:
 ```
     let src = "
 int func_add(int a, int b)
@@ -83,7 +35,7 @@ int main()
     parser.run();
     parser.dump();
 ```
-The output is:
+> output AST:
 ```
 SyntaxTree
   FuncDefine
@@ -106,6 +58,30 @@ SyntaxTree
     ReturnStmt
       Terminal(Number("0"))
 ```
+符号检查
+```
+    let src = "
+struct S { int a, b; };
+
+struct S1 { double S1; int b; };
+
+int a(int a, char b) {  }
+    ";
+
+    let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
+    println!("result: {:?}\n", parser.run());
+```
+> output: result: Ok(())
+```
+    let src = "
+// multi define of variable S::a
+struct S { int a, b; char a };
+    ";
+
+    let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
+    println!("result: {:?}\n", parser.run());
+```
+> output: result: Err(ParseErrInfo { err_type: MultiDefineError })
 
 ## C-language syntax defines
 ### 关键字

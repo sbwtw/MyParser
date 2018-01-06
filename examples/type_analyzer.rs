@@ -12,22 +12,16 @@ fn main() {
     env_logger::init().unwrap();
 
     let src = "
-
-struct S { int a, b; };
-
-struct S1 { double S1; int b; };
-
-int a(int a, char b) {  }
-
+struct S { int a, b; char a };
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
 
-    println!("\n{}\n", src);
+    // println!("\n{}\n", src);
 
     println!("result: {:?}\n", parser.run());
     parser.dump();
 
-    let mut type_analyzer = TypeAnalyzer::new(parser.syntax_tree());
-    println!();
-    println!();
+    // let mut type_analyzer = TypeAnalyzer::new(parser.syntax_tree());
+    // println!();
+    // println!();
 }
