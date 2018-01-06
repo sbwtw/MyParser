@@ -1,5 +1,5 @@
 
-void func(int a, double b);
+void func1(int a, double b);
 
 struct S { int a; };
 
