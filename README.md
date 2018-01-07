@@ -75,7 +75,7 @@ int a(int a, char b) {  }
 ```
     let src = "
 // multi define of variable S::a
-struct S { int a, b; char a };
+struct S { int a, b; char a; };
     ";
 
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));

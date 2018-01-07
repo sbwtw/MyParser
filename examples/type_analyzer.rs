@@ -12,11 +12,11 @@ fn main() {
     env_logger::init().unwrap();
 
     let src = "
-struct S { int a, b; char a };
+struct S { int a, b; char c; };
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
 
-    // println!("\n{}\n", src);
+    println!("\n{}\n", src);
 
     println!("result: {:?}\n", parser.run());
     parser.dump();
