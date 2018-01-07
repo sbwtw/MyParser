@@ -814,7 +814,7 @@ impl RecursiveDescentParser {
     fn match_identifier(&mut self) -> TokenResult {
         if self.current >= self.tokens.len() { return None; }
 
-        if let Identifier(_) = *self.tokens[self.current] {
+        if let Identifier(_, _) = *self.tokens[self.current] {
             self.current += 1;
             return self.copy_previous();
         }
@@ -1021,19 +1021,18 @@ mod test {
         let test1 = "(a+b)!=(c+1)||!(e)";
         let (mut tree, root_id) = tree!();
         let expr = insert_type!(tree, root_id, Expr);
-            insert!(tree, expr, Rc::new(Token::Identifier("a".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Identifier("a".to_owned(), Type::NoType)));
             insert!(tree, expr, Rc::new(Token::Operator(Operators::Add)));
-            insert!(tree, expr, Rc::new(Token::Identifier("b".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Identifier("b".to_owned(), Type::NoType)));
         insert!(tree, root_id, Rc::new(Token::Operator(Operators::NotEqual)));
         let expr = insert_type!(tree, root_id, Expr);
-            insert!(tree, expr, Rc::new(Token::Identifier("c".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Identifier("c".to_owned(), Type::NoType)));
             insert!(tree, expr, Rc::new(Token::Operator(Operators::Add)));
             insert!(tree, expr, Rc::new(Token::Number(Numbers::from_str("1"))));
         insert!(tree, root_id, Rc::new(Token::Operator(Operators::LogicOr)));
         let bool_expr = insert_type!(tree, root_id, BooleanExpr);
             insert!(tree, bool_expr, Rc::new(Token::Operator(Operators::LogicNot)));
-            insert!(tree, bool_expr, Rc::new(Token::Identifier("e".to_owned())));
-
+            insert!(tree, bool_expr, Rc::new(Token::Identifier("e".to_owned(), Type::NoType)));
 
         test_tree!(test, match_bool_expr, tree);
         test_tree!(test1, match_bool_expr, tree);
@@ -1051,9 +1050,9 @@ mod test {
 
         let (mut tree, root_id) = tree!();
         let assign = insert_type!(tree, root_id, AssignStmt);
-            insert!(tree, assign, Rc::new(Token::Identifier("number".to_owned())));
+            insert!(tree, assign, Rc::new(Token::Identifier("number".to_owned(), Type::NoType)));
             let expr = insert_type!(tree, assign, Expr);
-            insert!(tree, expr, Rc::new(Token::Identifier("x".to_owned())));
+            insert!(tree, expr, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
             insert!(tree, expr, Rc::new(Token::Operator(Operators::Add)));
             insert!(tree, expr, Rc::new(Token::Number(Numbers::from_str("1"))));
 
@@ -1068,15 +1067,15 @@ mod test {
         // if-else
         let (mut tree, root_id) = tree!();
         let if_stmt = insert_type!(tree, root_id, IfStmt);
-            insert!(tree, if_stmt, Rc::new(Token::Identifier("x".to_owned())));
+            insert!(tree, if_stmt, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
             insert!(tree, if_stmt, Rc::new(Token::Operator(Operators::Equal)));
             insert!(tree, if_stmt, Rc::new(Token::Number(Numbers::from_str("1"))));
             let assign = insert_type!(tree, if_stmt, AssignStmt);
-                insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
                 insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("1"))));
         let else_stmt = insert_type!(tree, root_id, ElseStmt);
             let assign = insert_type!(tree, else_stmt, AssignStmt);
-                insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
                 insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("2"))));
 
         let stmt = "if(x==1)x=1;else\nx=2;";
@@ -1085,19 +1084,19 @@ mod test {
         // if-if-else
         let (mut tree, root_id) = tree!();
         let if_stmt = insert_type!(tree, root_id, IfStmt);
-            insert!(tree, if_stmt, Rc::new(Token::Identifier("x".to_owned())));
+            insert!(tree, if_stmt, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
             insert!(tree, if_stmt, Rc::new(Token::Operator(Operators::Equal)));
             insert!(tree, if_stmt, Rc::new(Token::Number(Numbers::from_str("1"))));
             let inner_if = insert_type!(tree, if_stmt, IfStmt);
-                insert!(tree, inner_if, Rc::new(Token::Identifier("x".to_owned())));
+                insert!(tree, inner_if, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
                 insert!(tree, inner_if, Rc::new(Token::Operator(Operators::NotEqual)));
                 insert!(tree, inner_if, Rc::new(Token::Number(Numbers::from_str("2"))));
                 let assign = insert_type!(tree, inner_if, AssignStmt);
-                    insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                    insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
                     insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("3"))));
             let else_stmt = insert_type!(tree, if_stmt, ElseStmt);
                 let assign = insert_type!(tree, else_stmt, AssignStmt);
-                    insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned())));
+                    insert!(tree, assign, Rc::new(Token::Identifier("x".to_owned(), Type::NoType)));
                     insert!(tree, assign, Rc::new(Token::Number(Numbers::from_str("2"))));
 
         let stmt = "if(x==1)if(x!=2)x=3;else\nx=2;";

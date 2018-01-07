@@ -56,7 +56,7 @@ impl<'t> SymbolChecker<'t> {
 
     fn push_identifier(&self, id: &NodeId) -> ParserResult {
         match *self.token(id).unwrap() {
-            Token::Identifier(ref ident) => {
+            Token::Identifier(ref ident, _) => {
                 if self.symbols.borrow_mut().push_symbol(ident, id).is_err() {
                     return error!(MultiDefineError);
                 }
@@ -83,7 +83,7 @@ impl<'t> SymbolChecker<'t> {
     fn check_variable_define(&self, root_id: &NodeId) -> ParserResult {
         for id in self.ast.children_ids(root_id).unwrap() {
             match *self.token(id).unwrap() {
-                Token::Identifier(_) => self.push_identifier(id)?,
+                Token::Identifier(_, _) => self.push_identifier(id)?,
                 Token::KeyWord(_) => {},
                 _ => return error!(SemanticError),
             }

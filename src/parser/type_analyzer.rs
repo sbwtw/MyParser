@@ -31,7 +31,7 @@ impl<'t> TypeAnalyzer<'t> {
         match self.data(node) {
             &SyntaxType::Terminal(ref ptr) => {
                 match **ptr {
-                    Identifier(_) => self.type_of_ident(node),
+                    Identifier(_, _) => self.type_of_ident(node),
                     _ => Type::NoType,
                 }
             },
