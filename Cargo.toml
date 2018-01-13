@@ -30,6 +30,7 @@ path = "examples/programs/llvm.rs"
 
 [dependencies]
 id_tree = "*"
+llvm = { git = "https://github.com/gsingh93/llvm" }
 llvm-sys = "*"
 matches = "*"
 log = "*"

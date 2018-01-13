@@ -5,7 +5,6 @@ extern crate env_logger;
 use parser::lexer::*;
 use parser::parser::*;
 use parser::parser::recursive_descent::*;
-use parser::parser::syntax_node::*;
 use parser::parser::llvm_ir_generater::*;
 
 fn main() {
@@ -25,6 +24,9 @@ int f()
     println!("result: {:?}\n", parser.run());
     parser.dump();
 
-    let syntax = SyntaxType::Expr;
-    syntax.generate();
+    let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
+    generater.ir_gen();
+
+    println!();
+    generater.dump();
 }

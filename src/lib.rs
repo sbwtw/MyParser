@@ -4,6 +4,8 @@ extern crate id_tree;
 extern crate matches;
 #[macro_use]
 extern crate log;
+extern crate llvm;
+extern crate llvm_sys;
 
 pub mod lexer;
 pub mod parser;
