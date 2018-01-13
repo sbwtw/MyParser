@@ -1,8 +1,14 @@
 
 use parser::syntax_node::SyntaxTree;
 use parser::syntax_node::*;
+use token::Token;
+use token::KeyWords;
 
+use id_tree::*;
 use llvm::*;
+
+use std::rc::Rc;
+use std::cell::RefCell;
 
 pub trait LLVMIRGen {
     fn generate(&self);
@@ -17,7 +23,7 @@ impl LLVMIRGen for SyntaxType {
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Context,
-    module: Module,
+    module: Rc<RefCell<Module>>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -29,29 +35,45 @@ impl<'t> LLVMIRGenerater<'t> {
         LLVMIRGenerater {
             ast: ast,
             context: context,
-            module: module,
+            module: Rc::new(RefCell::new(module)),
         }
     }
 
     pub fn ir_gen(&mut self) {
-        self.function_gen();
+        // self.function_gen();
+        let ids = self.children_ids(self.ast.root_node_id().unwrap());
+        self.function_gen(&ids[0]);
+    }
+
+    pub fn function_addr(&mut self, func_name: &str) -> Option<extern "C" fn()> {
+        let ee = ExecutionEngine::create_for_module(&self.module.borrow()).unwrap();
+
+        ee.get_function_address(func_name)
     }
 
     pub fn dump(&mut self) {
-        self.module.dump();
+        self.module.borrow().dump();
     }
 
-    fn function_gen(&mut self) {
+    fn function_gen(&mut self, node: &NodeId) {
+        let ids = self.children_ids(node);
+        let func_name = self.ident_name(&ids[1]);
         let mut builder = self.context.create_builder();
+        let module = self.module.clone();
 
-        let ret = self.context.void_type();
-        let args = vec![];
+        // let ret = self.context.void_type();
+        let ret = self.llvm_type(&ids[0]);
+        // let args: Vec<&Type> = vec![ &i64::get_type_in_context(&self.context) ];
+        let args: Vec<&Type> = vec![];
+        let func_type = types::Function::new(ret, &args[..], false);
 
-        let func_type = types::Function::new(ret, &args, false);
+        let ret_value = self.context.cons(1);
 
-        let mut func = self.module.add_function(func_type, "func_name");
-        let bb = self.context.append_basic_block(&mut func, "func_name");
+        let mut func = module.borrow_mut().add_function(func_type, &func_name);
+        let bb = self.context.append_basic_block(&mut func, &func_name);
         builder.position_at_end(bb);
+        builder.build_ret(ret_value);
+        // builder.build_ret_void();
 
         /*
              let function_type = llvm::types::Function::new(
@@ -100,5 +122,34 @@ impl<'t> LLVMIRGenerater<'t> {
          *
          *
          */
+    }
+
+    fn llvm_type(&self, node_id: &NodeId) -> &Type {
+        match *self.token(node_id).unwrap() {
+            Token::KeyWord(KeyWords::Int) => i64::get_type_in_context(&self.context),
+            _ => panic!(),
+        }
+    }
+
+    fn ident_name(&self, node_id: &NodeId) -> String {
+        match self.token(node_id).unwrap().as_ref() {
+            &Token::Identifier(ref name, _) => return name.clone(),
+            _ => panic!(),
+        }
+    }
+
+    #[inline]
+    fn token(&self, node_id: &NodeId) -> Option<Rc<Token>> {
+        self.data(node_id).token()
+    }
+
+    #[inline]
+    fn data(&self, node_id: &NodeId) -> &SyntaxType {
+        self.ast.get(node_id).unwrap().data()
+    }
+
+    #[inline]
+    fn children_ids(&self, node_id: &NodeId) -> Vec<NodeId> {
+        self.ast.children_ids(&node_id).unwrap().map(|x| x.clone()).collect()
     }
 }

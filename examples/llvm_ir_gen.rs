@@ -12,7 +12,7 @@ fn main() {
     env_logger::init().unwrap();
 
     let src = "
-int f()
+int f(int a, int b)
 {
     return 0;
 }
