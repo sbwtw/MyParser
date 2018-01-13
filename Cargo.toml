@@ -20,6 +20,8 @@ name = "parser_assign_stmt"
 [[example]]
 name = "type_analyzer"
 [[example]]
+name = "llvm_ir_gen"
+[[example]]
 name = "clint"
 path = "examples/programs/clint.rs"
 [[example]]

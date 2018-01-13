@@ -1,6 +1,7 @@
 pub mod recursive_descent;
 pub mod type_analyzer;
-mod syntax_node;
+pub mod syntax_node;
+pub mod llvm_ir_generater;
 mod symbol_manager;
 mod symbol_checker;
 
