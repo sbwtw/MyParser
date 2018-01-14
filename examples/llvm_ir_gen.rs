@@ -19,8 +19,11 @@ int f(int a, int b)
     // else
         // b = b + 1;
 
-    // return a + b;
+    return;
+    return 1;
     return a;
+    return 1 + 2;
+    return a + b;
 }
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));

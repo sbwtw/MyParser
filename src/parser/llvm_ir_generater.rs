@@ -86,9 +86,15 @@ impl<'t> LLVMIRGenerater<'t> {
         for id in ids.iter().skip(arg_types.len() + 2) {
             match self.data(id) {
                 &SyntaxType::ReturnStmt => self.return_stmt_gen(&mut builder, id),
-                _ => break,
+                _ => {},
             }
         }
+
+        let x = func.get_param(0).unwrap();
+        let y = func.get_param(1).unwrap();
+        builder.build_ret(x);
+
+        builder.build_add(x, y, "tmpValue");
 
         // builder.build_ret_void();
 
@@ -149,13 +155,19 @@ impl<'t> LLVMIRGenerater<'t> {
             return;
         }
 
-        let token = self.token(&ids[0]);
-        match *token.unwrap() {
-            Token::Number(Numbers::SignedInt(v)) => {
-                let ret_value = self.context.cons(v as i64);
-                builder.build_ret(ret_value);
+        assert_eq!(ids.len(), 1);
+
+        match self.data(&ids[0]) {
+            &SyntaxType::Terminal(ref token) => {
+                match **token {
+                    Token::Number(Numbers::SignedInt(v)) => {
+                        let ret_value = self.context.cons(v as i64);
+                        builder.build_ret(ret_value);
+                    },
+                    _ => {}
+                }
             },
-            _ => {}
+            _ => {},
         }
     }
 
