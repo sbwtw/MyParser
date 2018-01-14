@@ -51,6 +51,7 @@ impl<'t> LLVMIRGenerater<'t> {
         ee.get_function_address(func_name)
     }
 
+    #[inline]
     pub fn dump(&mut self) {
         self.module.borrow().dump();
     }
@@ -61,11 +62,20 @@ impl<'t> LLVMIRGenerater<'t> {
         let mut builder = self.context.create_builder();
         let module = self.module.clone();
 
-        // let ret = self.context.void_type();
-        let ret = self.llvm_type(&ids[0]);
-        // let args: Vec<&Type> = vec![ &i64::get_type_in_context(&self.context) ];
-        let args: Vec<&Type> = vec![];
-        let func_type = types::Function::new(ret, &args[..], false);
+        let ret_type = self.llvm_type(&ids[0]);
+
+        // argument types
+        let mut arg_types: Vec<&Type> = vec![];
+        for id in ids.iter().skip(2) {
+            match self.data(id) {
+                &SyntaxType::FuncArg => {
+                    arg_types.push(self.llvm_type(&self.children_ids(id)[0]));
+                },
+                _ => break,
+            };
+        }
+
+        let func_type = types::Function::new(ret_type, &arg_types[..], false);
 
         let ret_value = self.context.cons(1);
 
@@ -126,6 +136,7 @@ impl<'t> LLVMIRGenerater<'t> {
 
     fn llvm_type(&self, node_id: &NodeId) -> &Type {
         match *self.token(node_id).unwrap() {
+            Token::KeyWord(KeyWords::Void) => &self.context.void_type(),
             Token::KeyWord(KeyWords::Int) => i64::get_type_in_context(&self.context),
             _ => panic!(),
         }
