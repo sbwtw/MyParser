@@ -14,7 +14,13 @@ fn main() {
     let src = "
 int f(int a, int b)
 {
-    return 0;
+    // if (a > 0)
+        // return a;
+    // else
+        // b = b + 1;
+
+    // return a + b;
+    return a;
 }
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));

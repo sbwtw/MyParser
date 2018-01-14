@@ -3,6 +3,7 @@ use parser::syntax_node::SyntaxTree;
 use parser::syntax_node::*;
 use token::Token;
 use token::KeyWords;
+use token::Numbers;
 
 use id_tree::*;
 use llvm::*;
@@ -59,7 +60,6 @@ impl<'t> LLVMIRGenerater<'t> {
     fn function_gen(&mut self, node: &NodeId) {
         let ids = self.children_ids(node);
         let func_name = self.ident_name(&ids[1]);
-        let mut builder = self.context.create_builder();
         let module = self.module.clone();
 
         let ret_type = self.llvm_type(&ids[0]);
@@ -76,13 +76,20 @@ impl<'t> LLVMIRGenerater<'t> {
         }
 
         let func_type = types::Function::new(ret_type, &arg_types[..], false);
-
-        let ret_value = self.context.cons(1);
-
         let mut func = module.borrow_mut().add_function(func_type, &func_name);
+
         let bb = self.context.append_basic_block(&mut func, &func_name);
+        let mut builder = self.context.create_builder();
         builder.position_at_end(bb);
-        builder.build_ret(ret_value);
+
+        // start to build basic blocks
+        for id in ids.iter().skip(arg_types.len() + 2) {
+            match self.data(id) {
+                &SyntaxType::ReturnStmt => self.return_stmt_gen(&mut builder, id),
+                _ => break,
+            }
+        }
+
         // builder.build_ret_void();
 
         /*
@@ -132,6 +139,24 @@ impl<'t> LLVMIRGenerater<'t> {
          *
          *
          */
+    }
+
+    fn return_stmt_gen(&self, builder: &mut Builder, node_id: &NodeId) {
+        let ids = self.children_ids(node_id);
+
+        if ids.len() == 0 {
+            builder.build_ret_void();
+            return;
+        }
+
+        let token = self.token(&ids[0]);
+        match *token.unwrap() {
+            Token::Number(Numbers::SignedInt(v)) => {
+                let ret_value = self.context.cons(v as i64);
+                builder.build_ret(ret_value);
+            },
+            _ => {}
+        }
     }
 
     fn llvm_type(&self, node_id: &NodeId) -> &Type {
