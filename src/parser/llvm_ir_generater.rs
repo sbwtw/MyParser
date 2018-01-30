@@ -7,9 +7,11 @@ use token::Numbers;
 
 use id_tree::*;
 use llvm::*;
+use llvm_sys::*;
 
 use std::rc::Rc;
 use std::cell::RefCell;
+use std::collections::HashMap;
 
 pub trait LLVMIRGen {
     fn generate(&self);
@@ -21,10 +23,37 @@ impl LLVMIRGen for SyntaxType {
     }
 }
 
+struct GeneraterSymbolsManager {
+    symbols: Vec<HashMap<String, *mut LLVMValue>>,
+}
+
+impl GeneraterSymbolsManager {
+    pub fn new() -> GeneraterSymbolsManager {
+        GeneraterSymbolsManager {
+            symbols: vec![ HashMap::new() ],
+        }
+    }
+
+    pub fn add_symbol<T: AsRef<str>>(&mut self, name: T, value: *mut LLVMValue) {
+        self.symbols.last_mut().map(|ref mut x| x.insert(name.as_ref().to_owned(), value));
+    }
+
+    pub fn symbol_lookup<T: AsRef<str>>(&self, name: T) -> Option<&*mut LLVMValue> {
+        for scope in self.symbols.iter().rev() {
+            if scope.contains_key(name.as_ref()) {
+                return scope.get(name.as_ref());
+            }
+        }
+
+        None
+    }
+}
+
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Context,
     module: Rc<RefCell<Module>>,
+    symbols: Rc<RefCell<GeneraterSymbolsManager>>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -37,11 +66,11 @@ impl<'t> LLVMIRGenerater<'t> {
             ast: ast,
             context: context,
             module: Rc::new(RefCell::new(module)),
+            symbols: Rc::new(RefCell::new(GeneraterSymbolsManager::new())),
         }
     }
 
     pub fn ir_gen(&mut self) {
-        // self.function_gen();
         let ids = self.children_ids(self.ast.root_node_id().unwrap());
         self.function_gen(&ids[0]);
     }
@@ -59,17 +88,21 @@ impl<'t> LLVMIRGenerater<'t> {
 
     fn function_gen(&mut self, node: &NodeId) {
         let ids = self.children_ids(node);
-        let func_name = self.ident_name(&ids[1]);
+        let func_name = self.ident_name(&ids[1]).unwrap();
         let module = self.module.clone();
+        let symbols = self.symbols.clone();
 
         let ret_type = self.llvm_type(&ids[0]);
 
         // argument types
         let mut arg_types: Vec<&Type> = vec![];
+        let mut arg_names = vec![];
         for id in ids.iter().skip(2) {
             match self.data(id) {
                 &SyntaxType::FuncArg => {
-                    arg_types.push(self.llvm_type(&self.children_ids(id)[0]));
+                    let childs = self.children_ids(id);
+                    arg_names.push(childs[1].clone());
+                    arg_types.push(self.llvm_type(&childs[0]));
                 },
                 _ => break,
             };
@@ -82,6 +115,11 @@ impl<'t> LLVMIRGenerater<'t> {
         let mut builder = self.context.create_builder();
         builder.position_at_end(bb);
 
+        // add argument symbols
+        for (index, arg) in arg_names.iter().enumerate() {
+            symbols.borrow_mut().add_symbol(self.ident_name(&arg).unwrap(), func.get_param(index as u32).unwrap());
+        }
+
         // start to build basic blocks
         for id in ids.iter().skip(arg_types.len() + 2) {
             match self.data(id) {
@@ -90,11 +128,12 @@ impl<'t> LLVMIRGenerater<'t> {
             }
         }
 
-        let x = func.get_param(0).unwrap();
-        let y = func.get_param(1).unwrap();
-        builder.build_ret(x);
+        // let x = func.get_param(0).unwrap();
+        // let y = func.get_param(1).unwrap();
+        // let () = x;
+        // builder.build_ret(x);
 
-        builder.build_add(x, y, "tmpValue");
+        // builder.build_add(x, y, "tmpValue");
 
         // builder.build_ret_void();
 
@@ -164,6 +203,9 @@ impl<'t> LLVMIRGenerater<'t> {
                         let ret_value = self.context.cons(v as i64);
                         builder.build_ret(ret_value);
                     },
+                    Token::Identifier(ref name, _) => {
+                        builder.build_ret(*self.symbols.borrow().symbol_lookup(name).unwrap());
+                    },
                     _ => {}
                 }
             },
@@ -179,11 +221,9 @@ impl<'t> LLVMIRGenerater<'t> {
         }
     }
 
-    fn ident_name(&self, node_id: &NodeId) -> String {
-        match self.token(node_id).unwrap().as_ref() {
-            &Token::Identifier(ref name, _) => return name.clone(),
-            _ => panic!(),
-        }
+    #[inline]
+    fn ident_name(&self, node_id: &NodeId) -> Option<&str> {
+        self.data(node_id).symbol()
     }
 
     #[inline]

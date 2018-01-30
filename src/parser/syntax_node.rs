@@ -36,4 +36,16 @@ impl SyntaxType {
             _ => None,
         }
     }
+
+    pub fn symbol(&self) -> Option<&str> {
+        match *self {
+            SyntaxType::Terminal(ref tok) => {
+                match &**tok {
+                    &Token::Identifier(ref id, _) => Some(id),
+                    _ => None,
+                }
+            },
+            _ => None,
+        }
+    }
 }
