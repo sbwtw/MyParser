@@ -3,6 +3,7 @@ use parser::syntax_node::SyntaxTree;
 use parser::syntax_node::*;
 use token::Token;
 use token::KeyWords;
+use token::Operators;
 use token::Numbers;
 
 use id_tree::*;
@@ -111,7 +112,7 @@ impl<'t> LLVMIRGenerater<'t> {
         let func_type = types::Function::new(ret_type, &arg_types[..], false);
         let mut func = module.borrow_mut().add_function(func_type, &func_name);
 
-        let bb = self.context.append_basic_block(&mut func, &func_name);
+        let bb = self.context.append_basic_block(&mut func, "");
         let mut builder = self.context.create_builder();
         builder.position_at_end(bb);
 
@@ -209,7 +210,39 @@ impl<'t> LLVMIRGenerater<'t> {
                     _ => {}
                 }
             },
+            &SyntaxType::Expr => {
+                let r = self.expr_gen(builder, &ids[0]);
+                builder.build_ret(r);
+            }
             _ => {},
+        }
+    }
+
+    fn expr_gen(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
+        let childs = self.children_ids(node_id);
+        assert_eq!(childs.len(), 3);
+
+        let value1 = self.llvm_value(builder, &childs[0]);
+        let value2 = self.llvm_value(builder, &childs[2]);
+
+        match *self.token(&childs[1]).unwrap() {
+            Token::Operator(Operators::Add) => builder.build_add(value1, value2, "add"),
+            Token::Operator(Operators::Mul) => builder.build_mul(value1, value2, "mul"),
+            _ => unreachable!(),
+        }
+    }
+
+    fn llvm_value(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
+        match self.data(node_id) {
+            &SyntaxType::Terminal(ref term) => {
+                match term.as_ref() {
+                    &Token::Identifier(ref name, _) => *self.symbols.borrow().symbol_lookup(name).unwrap(),
+                    &Token::Number(Numbers::SignedInt(n)) => self.context.cons(n as i64),
+                    _ => unreachable!(),
+                }
+            }
+            &SyntaxType::Expr => self.expr_gen(builder, node_id),
+            _ => unreachable!(),
         }
     }
 
