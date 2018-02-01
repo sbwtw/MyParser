@@ -14,6 +14,9 @@ fn main() {
     let src = "
 int f(int a, int b)
 {
+    if (a > 0)
+        return a;
+
     return a + b * 2;
 }
     ";

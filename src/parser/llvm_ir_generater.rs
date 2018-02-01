@@ -125,6 +125,11 @@ impl<'t> LLVMIRGenerater<'t> {
         for id in ids.iter().skip(arg_types.len() + 2) {
             match self.data(id) {
                 &SyntaxType::ReturnStmt => self.return_stmt_gen(&mut builder, id),
+                &SyntaxType::IfStmt => {
+                    let true_bb = self.context.append_basic_block(&mut func, "true_bb");
+                    let false_bb = self.context.append_basic_block(&mut func, "false_bb");
+                    self.if_stmt_gen(&mut builder, id, true_bb, false_bb);
+                },
                 _ => {},
             }
         }
@@ -216,6 +221,15 @@ impl<'t> LLVMIRGenerater<'t> {
             }
             _ => {},
         }
+    }
+
+    fn if_stmt_gen(&self, builder: &mut Builder, node_id: &NodeId, tb: *mut LLVMBasicBlock, fb: *mut LLVMBasicBlock) {
+        let childs = self.children_ids(node_id);
+        println!("if stmt gen");
+        let value = self.llvm_value(builder, &childs[0]);
+        let v = builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, value, self.context.cons(2), "cmp");
+
+        builder.build_cond_br(v, tb, fb);
     }
 
     fn expr_gen(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
