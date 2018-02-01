@@ -1,40 +1,38 @@
 
-use id_tree::NodeId;
-
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::cell::RefCell;
 
-type SymbolTable = HashMap<String, NodeId>;
+type SymbolTable<V> = HashMap<String, V>;
 
-pub struct SymbolManager {
-    symbols: Vec<SymbolTable>,
+pub struct SymbolManager<V> {
+    symbols: Vec<SymbolTable<V>>,
     scopes: Vec<String>,
 }
 
 /// Using RAII to manage symbol scope
-pub struct ScopeGuard {
-    symbol_manager: Rc<RefCell<SymbolManager>>,
+pub struct ScopeGuard<V> {
+    symbol_manager: Rc<RefCell<SymbolManager<V>>>,
 }
 
-impl ScopeGuard {
-    pub fn new(ptr: Rc<RefCell<SymbolManager>>) -> ScopeGuard {
+impl<V> ScopeGuard<V> {
+    pub fn new(ptr: Rc<RefCell<SymbolManager<V>>>) -> ScopeGuard<V> {
         ptr.borrow_mut().create_scope();
         ScopeGuard { symbol_manager: ptr }
     }
 }
 
-impl Drop for ScopeGuard {
+impl<V> Drop for ScopeGuard<V> {
     fn drop(&mut self) {
         self.symbol_manager.borrow_mut().destory_scope();
     }
 }
 
-impl SymbolManager {
-    pub fn new() -> SymbolManager {
+impl<V> SymbolManager<V> {
+    pub fn new() -> SymbolManager<V> {
         SymbolManager {
             symbols: vec![SymbolTable::new()],
-            scopes: vec![String::new()],
+            scopes: vec![ String::new() ],
         }
     }
 
@@ -46,7 +44,7 @@ impl SymbolManager {
         self.scopes.join("::")
     }
 
-    pub fn lookup<S: AsRef<str>>(&self, symbol: S) -> Option<&NodeId> {
+    pub fn lookup<S: AsRef<str>>(&self, symbol: S) -> Option<&V> {
         let s = symbol.as_ref();
         for table in self.symbols.iter().rev() {
             if table.contains_key(s) {
@@ -71,7 +69,7 @@ impl SymbolManager {
         let _ = self.symbols.pop();
     }
 
-    pub fn push_symbol<S: AsRef<str>>(&mut self, symbol: S, id: &NodeId) -> Result<(), &NodeId> {
+    pub fn push_symbol<S: AsRef<str>>(&mut self, symbol: S, id: V) -> Result<(), &V> {
         let s = symbol.as_ref();
         let tbl = { self.symbols.last_mut().unwrap() };
         if tbl.contains_key(s) {
@@ -80,7 +78,7 @@ impl SymbolManager {
 
         trace!("symbol added: `{}`", s);
 
-        tbl.insert(s.to_owned(), id.clone());
+        tbl.insert(s.to_owned(), id);
         Ok(())
     }
 }

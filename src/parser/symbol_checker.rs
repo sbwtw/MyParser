@@ -14,7 +14,7 @@ use std::cell::RefCell;
 
 pub struct SymbolChecker<'t> {
     ast: &'t SyntaxTree,
-    symbols: Rc<RefCell<SymbolManager>>,
+    symbols: Rc<RefCell<SymbolManager<NodeId>>>,
 }
 
 macro_rules! error {
@@ -57,7 +57,7 @@ impl<'t> SymbolChecker<'t> {
     fn push_identifier(&self, id: &NodeId) -> ParserResult {
         match *self.token(id).unwrap() {
             Token::Identifier(ref ident, _) => {
-                if self.symbols.borrow_mut().push_symbol(ident, id).is_err() {
+                if self.symbols.borrow_mut().push_symbol(ident, id.clone()).is_err() {
                     return error!(MultiDefineError);
                 }
             },
@@ -136,7 +136,7 @@ impl<'t> SymbolChecker<'t> {
     }
 
     #[inline]
-    fn scope_guard(&self) -> ScopeGuard {
+    fn scope_guard(&self) -> ScopeGuard<NodeId> {
         ScopeGuard::new(self.symbols.clone())
     }
 }
