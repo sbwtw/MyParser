@@ -28,7 +28,7 @@ pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Context,
     module: Rc<RefCell<Module>>,
-    symbols: Rc<RefCell<SymbolManager<*mut LLVMValue>>>,
+    symbols: Rc<RefCell<SymbolManager<*mut LLVMValue, ()>>>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -261,4 +261,9 @@ impl<'t> LLVMIRGenerater<'t> {
     fn children_ids(&self, node_id: &NodeId) -> Vec<NodeId> {
         self.ast.children_ids(&node_id).unwrap().map(|x| x.clone()).collect()
     }
+
+    // #[inline]
+    // fn scope_guard(&self, func: Function) -> ScopeGuard<*mut LLVMValue, Function> {
+        // ScopeGuard::new(self.symbols.clone(), func)
+    // }
 }

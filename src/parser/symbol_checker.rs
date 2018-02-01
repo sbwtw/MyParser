@@ -14,7 +14,7 @@ use std::cell::RefCell;
 
 pub struct SymbolChecker<'t> {
     ast: &'t SyntaxTree,
-    symbols: Rc<RefCell<SymbolManager<NodeId>>>,
+    symbols: Rc<RefCell<SymbolManager<NodeId, String>>>,
 }
 
 macro_rules! error {
@@ -71,7 +71,7 @@ impl<'t> SymbolChecker<'t> {
         let ids = self.children_ids(root_id);
         if ids.len() == 2 { self.push_identifier(ids[0])?; }
 
-        let _symbol_guard = self.scope_guard();
+        let _symbol_guard = self.scope_guard("");
         for i in 1..ids.len() {
             self.check_variable_define(ids[i])?;
         }
@@ -97,7 +97,7 @@ impl<'t> SymbolChecker<'t> {
         // check function name, function return type is index 0.
         self.push_identifier(ids[1])?;
 
-        let _symbol_guard = self.scope_guard();
+        let _symbol_guard = self.scope_guard("");
 
         // check function arguments
         let mut index = 2;
@@ -136,8 +136,8 @@ impl<'t> SymbolChecker<'t> {
     }
 
     #[inline]
-    fn scope_guard(&self) -> ScopeGuard<NodeId> {
-        ScopeGuard::new(self.symbols.clone())
+    fn scope_guard<T: AsRef<str>>(&self, scope: T) -> ScopeGuard<NodeId, String> {
+        ScopeGuard::new(self.symbols.clone(), scope.as_ref().to_owned())
     }
 }
 

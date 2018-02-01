@@ -5,34 +5,34 @@ use std::cell::RefCell;
 
 type SymbolTable<V> = HashMap<String, V>;
 
-pub struct SymbolManager<V> {
+pub struct SymbolManager<V, S> {
     symbols: Vec<SymbolTable<V>>,
-    scopes: Vec<String>,
+    scopes: Vec<S>,
 }
 
 /// Using RAII to manage symbol scope
-pub struct ScopeGuard<V> {
-    symbol_manager: Rc<RefCell<SymbolManager<V>>>,
+pub struct ScopeGuard<V, S> {
+    symbol_manager: Rc<RefCell<SymbolManager<V, S>>>,
 }
 
-impl<V> ScopeGuard<V> {
-    pub fn new(ptr: Rc<RefCell<SymbolManager<V>>>) -> ScopeGuard<V> {
-        ptr.borrow_mut().create_scope();
+impl<V, S> ScopeGuard<V, S> {
+    pub fn new(ptr: Rc<RefCell<SymbolManager<V, S>>>, scope: S) -> ScopeGuard<V, S> {
+        ptr.borrow_mut().create_scope(scope);
         ScopeGuard { symbol_manager: ptr }
     }
 }
 
-impl<V> Drop for ScopeGuard<V> {
+impl<V, S> Drop for ScopeGuard<V, S> {
     fn drop(&mut self) {
         self.symbol_manager.borrow_mut().destory_scope();
     }
 }
 
-impl<V> SymbolManager<V> {
-    pub fn new() -> SymbolManager<V> {
+impl<V, S> SymbolManager<V, S> {
+    pub fn new() -> SymbolManager<V, S> {
         SymbolManager {
             symbols: vec![SymbolTable::new()],
-            scopes: vec![ String::new() ],
+            scopes: vec![],
         }
     }
 
@@ -40,11 +40,15 @@ impl<V> SymbolManager<V> {
         self.symbols.len()
     }
 
-    fn scope_str(&self) -> String {
-        self.scopes.join("::")
+    pub fn current_scope(&self) -> Option<&S> {
+        self.scopes.last()
     }
 
-    pub fn lookup<S: AsRef<str>>(&self, symbol: S) -> Option<&V> {
+    pub fn current_scope_mut(&mut self) -> Option<&mut S> {
+        self.scopes.last_mut()
+    }
+
+    pub fn lookup<T: AsRef<str>>(&self, symbol: T) -> Option<&V> {
         let s = symbol.as_ref();
         for table in self.symbols.iter().rev() {
             if table.contains_key(s) {
@@ -56,10 +60,11 @@ impl<V> SymbolManager<V> {
     }
 
     #[inline]
-    fn create_scope(&mut self) {
+    fn create_scope(&mut self, scope: S) {
         trace!("create_scope");
 
         self.symbols.push(SymbolTable::new());
+        self.scopes.push(scope);
     }
 
     #[inline]
@@ -69,7 +74,7 @@ impl<V> SymbolManager<V> {
         let _ = self.symbols.pop();
     }
 
-    pub fn push_symbol<S: AsRef<str>>(&mut self, symbol: S, id: V) -> Result<(), &V> {
+    pub fn push_symbol<T: AsRef<str>>(&mut self, symbol: T, id: V) -> Result<(), &V> {
         let s = symbol.as_ref();
         let tbl = { self.symbols.last_mut().unwrap() };
         if tbl.contains_key(s) {
