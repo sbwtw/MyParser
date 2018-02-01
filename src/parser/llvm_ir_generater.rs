@@ -27,6 +27,7 @@ impl LLVMIRGen for SyntaxType {
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Context,
+    func: Rc<RefCell<Option<Function>>>,
     module: Rc<RefCell<Module>>,
     symbols: Rc<RefCell<SymbolManager<*mut LLVMValue, ()>>>,
 }
@@ -40,6 +41,7 @@ impl<'t> LLVMIRGenerater<'t> {
         LLVMIRGenerater {
             ast: ast,
             context: context,
+            func: Rc::new(RefCell::new(None)),
             module: Rc::new(RefCell::new(module)),
             symbols: Rc::new(RefCell::new(SymbolManager::new())),
         }
@@ -67,8 +69,6 @@ impl<'t> LLVMIRGenerater<'t> {
         let module = self.module.clone();
         let symbols = self.symbols.clone();
 
-        let ret_type = self.llvm_type(&ids[0]);
-
         // argument types
         let mut arg_types: Vec<&Type> = vec![];
         let mut arg_names = vec![];
@@ -83,27 +83,26 @@ impl<'t> LLVMIRGenerater<'t> {
             };
         }
 
-        let func_type = types::Function::new(ret_type, &arg_types[..], false);
-        let mut func = module.borrow_mut().add_function(func_type, &func_name);
+        let func_type = types::Function::new(self.llvm_type(&ids[0]), &arg_types[..], false);
+        let func = module.borrow_mut().add_function(func_type, &func_name);
+        self.func.replace(Some(func));
 
-        let bb = self.context.append_basic_block(&mut func, "");
+        let ptr = self.func.clone();
+
+        let bb = self.create_basic_block("");
         let mut builder = self.context.create_builder();
         builder.position_at_end(bb);
 
         // add argument symbols
         for (index, arg) in arg_names.iter().enumerate() {
-            symbols.borrow_mut().push_symbol(self.ident_name(&arg).unwrap(), func.get_param(index as u32).unwrap()).unwrap();
+            symbols.borrow_mut().push_symbol(self.ident_name(&arg).unwrap(), ptr.borrow_mut().as_mut().unwrap().get_param(index as u32).unwrap()).unwrap();
         }
 
         // start to build basic blocks
         for id in ids.iter().skip(arg_types.len() + 2) {
             match self.data(id) {
                 &SyntaxType::ReturnStmt => self.return_stmt_gen(&mut builder, id),
-                &SyntaxType::IfStmt => {
-                    let true_bb = self.context.append_basic_block(&mut func, "true_bb");
-                    let false_bb = self.context.append_basic_block(&mut func, "false_bb");
-                    self.if_stmt_gen(&mut builder, id, true_bb, false_bb);
-                },
+                &SyntaxType::IfStmt => self.if_stmt_gen(&mut builder, id),
                 _ => {},
             }
         }
@@ -197,13 +196,19 @@ impl<'t> LLVMIRGenerater<'t> {
         }
     }
 
-    fn if_stmt_gen(&self, builder: &mut Builder, node_id: &NodeId, tb: *mut LLVMBasicBlock, fb: *mut LLVMBasicBlock) {
+    fn if_stmt_gen(&self, builder: &mut Builder, node_id: &NodeId) {
         let childs = self.children_ids(node_id);
         println!("if stmt gen");
         let value = self.llvm_value(builder, &childs[0]);
         let v = builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, value, self.context.cons(2), "cmp");
 
+        let tb = self.create_basic_block("tb");
+        let fb = self.create_basic_block("fb");
         builder.build_cond_br(v, tb, fb);
+
+        builder.position_at_end(tb);
+        builder.build_ret_void();
+        builder.position_at_end(fb);
     }
 
     fn expr_gen(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
@@ -243,8 +248,13 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     #[inline]
-    fn ident_name(&self, node_id: &NodeId) -> Option<&str> {
-        self.data(node_id).symbol()
+    fn create_basic_block(&self, name: &str) -> *mut LLVMBasicBlock {
+        self.context.append_basic_block(self.func.borrow_mut().as_mut().unwrap(), name)
+    }
+
+    #[inline]
+    fn ident_name(&self, node_id: &NodeId) -> Option<String> {
+        self.data(node_id).symbol().map(|x| x.to_owned())
     }
 
     #[inline]
