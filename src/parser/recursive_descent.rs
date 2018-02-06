@@ -350,12 +350,10 @@ impl RecursiveDescentParser {
                 self.tree.remove_node(self_id, DropChildren).unwrap();
                 return false;
             }
-            if self.match_expr_mul_fix(root) {
-                self.adjust_single_child(self_id);
-                return true;
-            } else {
-                return false;
-            }
+
+            self.adjust_single_child(self_id);
+
+            return self.match_expr_mul_fix(root);
         }
 
         true
@@ -835,7 +833,6 @@ impl RecursiveDescentParser {
 
     fn adjust_single_child(&mut self, node: NodeId) {
         let children_num = self.tree.children(&node).unwrap().count();
-        assert!(children_num > 0);
 
         if children_num == 1 {
             self.tree.remove_node(node, LiftChildren).unwrap();
@@ -937,13 +934,16 @@ mod test {
     }
 
     macro_rules! test_tree {
-        ($test: expr, $func: ident, $tree: ident) => {
+        ($test: expr, $func: ident, $tree: ident, $dump: expr) => {
             let mut parser = RecursiveDescentParser::new(Lexer::new($test.as_bytes()));
             let id = parser.root_id();
 
             let tree_root_id = $tree.root_node_id().unwrap();
 
             assert!(parser.$func(&id));
+
+            if ($dump) { parser.dump(); }
+
             assert_eq!(parser.syntax_tree().height(), $tree.height());
 
             let tree_iter = $tree.traverse_pre_order(tree_root_id).unwrap();
@@ -952,10 +952,15 @@ mod test {
 
             let tree_iter = $tree.traverse_pre_order(tree_root_id).unwrap();
             let parser_iter = parser.traverse_pre_order();
+
             for (node1, node2) in tree_iter.zip(parser_iter) {
                 assert_eq!(node1.data(), node2.data());
                 assert_eq!(node1.children().len(), node2.children().len());
             }
+        };
+
+        ($test: expr, $func: ident, $tree: ident) => {
+            test_tree!($test, $func, $tree, false);
         }
     }
 
@@ -1006,6 +1011,18 @@ mod test {
                         //  "3 % num",
                          "2-((4)*(2))"];
         test_func!(tests, match_expr);
+
+        let test = "1 * 1 * 1 * 1";
+        let (mut tree, root_id) = tree!();
+        insert!(tree, root_id, Rc::new(Token::Number(Numbers::from_str("1"))));
+        insert!(tree, root_id, Rc::new(Token::Operator(Operators::Mul)));
+        insert!(tree, root_id, Rc::new(Token::Number(Numbers::from_str("1"))));
+        insert!(tree, root_id, Rc::new(Token::Operator(Operators::Mul)));
+        insert!(tree, root_id, Rc::new(Token::Number(Numbers::from_str("1"))));
+        insert!(tree, root_id, Rc::new(Token::Operator(Operators::Mul)));
+        insert!(tree, root_id, Rc::new(Token::Number(Numbers::from_str("1"))));
+
+        test_tree!(test, match_expr, tree);
     }
 
     #[test]
