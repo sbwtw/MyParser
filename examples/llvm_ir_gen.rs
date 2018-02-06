@@ -14,10 +14,10 @@ fn main() {
     let src = "
 int f(int a, int b)
 {
-    if (a > 0)
+    if (a >= 0)
         return a;
 
-    return a + b * 2;
+    return a + b;
 }
     ";
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));

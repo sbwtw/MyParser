@@ -12,7 +12,6 @@ use llvm::*;
 use llvm_sys::*;
 
 use std::rc::Rc;
-use std::cell::RefCell;
 
 pub trait LLVMIRGen {
     fn generate(&self);
@@ -199,31 +198,59 @@ impl<'t> LLVMIRGenerater<'t> {
 
     fn if_stmt_gen(&self, func: &mut Function, builder: &mut Builder, node_id: &NodeId) {
         let childs = self.children_ids(node_id);
-        println!("if stmt gen");
-        let value = self.llvm_value(builder, &childs[0]);
-        let v = builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, value, self.context.cons(2), "cmp");
 
-        let tb = self.context.append_basic_block(func, "tb");
-        let fb = self.context.append_basic_block(func, "tb");
-        builder.build_cond_br(v, tb, fb);
+        let lhs = self.llvm_value(builder, &childs[0]);
+        let rhs = self.llvm_value(builder, &childs[2]);
 
+        // binary op
+        let if_result = match *self.token(&childs[1]).unwrap() {
+            Token::Operator(Operators::Equal) =>
+                builder.build_icmp(LLVMIntPredicate::LLVMIntEQ, lhs, rhs, "icmp_eq"),
+            Token::Operator(Operators::NotEqual) =>
+                builder.build_icmp(LLVMIntPredicate::LLVMIntNE, lhs, rhs, "icmp_ne"),
+            Token::Operator(Operators::Greater) =>
+                builder.build_icmp(LLVMIntPredicate::LLVMIntSGT, lhs, rhs, "icmp_sgt"),
+            Token::Operator(Operators::GreaterEqual) =>
+                builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, lhs, rhs, "icmp_sge"),
+            _ => unreachable!(),
+        };
+
+        let tb = self.context.append_basic_block(func, "if");
+        let fb = self.context.append_basic_block(func, "endif");
+        builder.build_cond_br(if_result, tb, fb);
+
+        // move to true branch
         builder.position_at_end(tb);
-        builder.build_ret_void();
+        if childs.len() > 3 {
+            self.return_stmt_gen(builder, &childs[3]);
+        }
+
+        // move to end
         builder.position_at_end(fb);
     }
 
     fn expr_gen(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
         let childs = self.children_ids(node_id);
-        assert_eq!(childs.len(), 3);
+        assert!(childs.len() >= 3);
 
-        let value1 = self.llvm_value(builder, &childs[0]);
-        let value2 = self.llvm_value(builder, &childs[2]);
+        let mut lhs = self.llvm_value(builder, &childs[0]);
+        let mut current_op = 1;
+        loop {
+            let rhs = self.llvm_value(builder, &childs[current_op + 1]);
 
-        match *self.token(&childs[1]).unwrap() {
-            Token::Operator(Operators::Add) => builder.build_add(value1, value2, "add"),
-            Token::Operator(Operators::Mul) => builder.build_mul(value1, value2, "mul"),
-            _ => unreachable!(),
+            lhs = match *self.token(&childs[current_op]).unwrap() {
+                Token::Operator(Operators::Add) => builder.build_add(lhs, rhs, "add"),
+                Token::Operator(Operators::Mul) => builder.build_mul(lhs, rhs, "mul"),
+                Token::Operator(Operators::Minus) => builder.build_mul(lhs, rhs, "sub"),
+                Token::Operator(Operators::Division) => builder.build_mul(lhs, rhs, "div"),
+                _ => unreachable!(),
+            };
+
+            current_op += 2;
+            if current_op >= childs.len() { break; }
         }
+
+        lhs
     }
 
     fn llvm_value(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
