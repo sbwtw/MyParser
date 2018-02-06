@@ -28,7 +28,7 @@ pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Rc<Context>,
     module: Rc<Module>,
-    symbols: Rc<RefCell<SymbolManager<*mut LLVMValue, ()>>>,
+    symbols: Rc<SymbolManager<*mut LLVMValue, ()>>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -41,7 +41,7 @@ impl<'t> LLVMIRGenerater<'t> {
             ast: ast,
             context: Rc::new(context),
             module: Rc::new(module),
-            symbols: Rc::new(RefCell::new(SymbolManager::new())),
+            symbols: Rc::new(SymbolManager::new()),
         }
     }
 
@@ -64,10 +64,8 @@ impl<'t> LLVMIRGenerater<'t> {
     fn function_gen(&mut self, node: &NodeId) {
 
         let context = self.context.clone();
-
         let ids = self.children_ids(node);
         let func_name = self.ident_name(&ids[1]).unwrap();
-        let symbols = self.symbols.clone();
 
         // argument types
         let mut arg_types: Vec<&Type> = vec![];
@@ -76,8 +74,10 @@ impl<'t> LLVMIRGenerater<'t> {
             match self.data(id) {
                 &SyntaxType::FuncArg => {
                     let childs = self.children_ids(id);
+                    let llvm_type = self.llvm_type(&context, &childs[0]);
+
                     arg_names.push(childs[1].clone());
-                    arg_types.push(self.llvm_type(&context, &childs[0]));
+                    arg_types.push(llvm_type);
                 },
                 _ => break,
             };
@@ -92,7 +92,8 @@ impl<'t> LLVMIRGenerater<'t> {
 
         // add argument symbols
         for (index, arg) in arg_names.iter().enumerate() {
-            symbols.borrow_mut().push_symbol(self.ident_name(&arg).unwrap(), func.get_param(index as u32).unwrap()).unwrap();
+            let name = { self.ident_name(&arg).unwrap() };
+            Rc::get_mut(&mut self.symbols).unwrap().push_symbol(name, func.get_param(index as u32).unwrap()).unwrap();
         }
 
         // start to build basic blocks
@@ -183,7 +184,7 @@ impl<'t> LLVMIRGenerater<'t> {
                         builder.build_ret(ret_value);
                     },
                     Token::Identifier(ref name, _) => {
-                        builder.build_ret(*self.symbols.borrow().lookup(name).unwrap());
+                        builder.build_ret(*self.symbols.lookup(name).unwrap());
                     },
                     _ => {}
                 }
@@ -229,7 +230,7 @@ impl<'t> LLVMIRGenerater<'t> {
         match self.data(node_id) {
             &SyntaxType::Terminal(ref term) => {
                 match term.as_ref() {
-                    &Token::Identifier(ref name, _) => *self.symbols.borrow().lookup(name).unwrap(),
+                    &Token::Identifier(ref name, _) => *self.symbols.lookup(name).unwrap(),
                     &Token::Number(Numbers::SignedInt(n)) => self.context.cons(n as i64),
                     _ => unreachable!(),
                 }
