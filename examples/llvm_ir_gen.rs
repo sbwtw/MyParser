@@ -9,12 +9,12 @@ use parser::parser::llvm_ir_generater::*;
 
 fn main() {
 
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let src = "
 int f(int a, int b)
 {
-    if (a >= 0)
+    if (a >= 5)
         return a;
 
     return a + b;

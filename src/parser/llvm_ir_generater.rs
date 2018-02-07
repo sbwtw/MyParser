@@ -49,10 +49,9 @@ impl<'t> LLVMIRGenerater<'t> {
         self.function_gen(&ids[0]);
     }
 
-    pub fn function_addr(&mut self, func_name: &str) -> Option<extern "C" fn()> {
-        let ee = ExecutionEngine::create_for_module(&self.module).unwrap();
-
-        ee.get_function_address(func_name)
+    #[inline]
+    fn module(&self) -> Rc<Module> {
+        self.module.clone()
     }
 
     #[inline]
@@ -103,66 +102,6 @@ impl<'t> LLVMIRGenerater<'t> {
                 _ => {},
             }
         }
-
-        // self.module = Some(module);
-        // self.context = Some(context);
-
-        // let x = func.get_param(0).unwrap();
-        // let y = func.get_param(1).unwrap();
-        // let () = x;
-        // builder.build_ret(x);
-
-        // builder.build_add(x, y, "tmpValue");
-
-        // builder.build_ret_void();
-
-        /*
-             let function_type = llvm::types::Function::new(
-        i64::get_type_in_context(&context),
-        &[
-            i64::get_type_in_context(&context),
-            i64::get_type_in_context(&context),
-            i64::get_type_in_context(&context)
-        ],
-        false);
-    let mut func = module.add_function(function_type, "fname");
-    let bb = context.append_basic_block(&mut func, "fname");
-    builder.position_at_end(bb);
-
-    // get the function's arguments
-    let x = func.get_param(0).unwrap();
-    let y = func.get_param(1).unwrap();
-    let z = func.get_param(2).unwrap();
-
-    let b = context.cons(20i64);
-
-    let s1 = builder.build_add(x, b, "s1");
-    let s2 = builder.build_add(y, s1, "s2");
-    let s3 = builder.build_add(z, s2, "s3");
-    builder.build_ret(s3);
-
-    module.dump();
-
-    llvm::link_in_mcjit();
-    llvm::initialize_native_target();
-    llvm::initialize_native_asm_printer();
-
-    let ee = llvm::ExecutionEngine::create_for_module(&module).unwrap();
-    let addr = ee.get_function_address("fname").unwrap();
-
-    unsafe {
-        let f: extern "C" fn(u64, u64, u64) -> u64 = mem::transmute(addr);
-
-        let x: u64 = 1;
-        let y: u64 = 2;
-        let z: u64 = 3;
-        let res = f(x, y, z);
-
-        println!("{} + {} + {} = {}", x, y, z, res);
-}
-         *
-         *
-         */
     }
 
     fn return_stmt_gen(&self, builder: &mut Builder, node_id: &NodeId) {
@@ -299,4 +238,63 @@ impl<'t> LLVMIRGenerater<'t> {
     // fn scope_guard(&self, func: Function) -> ScopeGuard<*mut LLVMValue, Function> {
         // ScopeGuard::new(self.symbols.clone(), func)
     // }
+}
+
+#[cfg(test)]
+mod test {
+
+    use parser::*;
+    use parser::recursive_descent::*;
+    use lexer::*;
+    use parser::llvm_ir_generater::*;
+
+    use std::mem;
+
+    macro_rules! create_llvm_execution_engine {
+        ($src: ident, $ee: ident) => {
+            let mut parser = RecursiveDescentParser::new(Lexer::new($src.as_bytes()));
+            parser.run().unwrap();
+
+            let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
+            generater.ir_gen();
+
+            link_in_mcjit();
+            initialize_native_target();
+            initialize_native_asm_printer();
+
+            let module = generater.module();
+            let $ee = ExecutionEngine::create_for_module(&module).unwrap();
+        };
+    }
+
+    macro_rules! func_addr_in_ee {
+        ($ee: ident, $name: expr, $type: ty) => {
+            unsafe {
+                let f: $type = mem::transmute($ee.get_function_address($name).unwrap());
+                f
+            }
+        }
+    }
+
+    #[test]
+    fn test_jit_expr()
+    {
+        let src = "
+int f(int a, int b)
+{
+    if (a >= 5)
+        return a;
+
+    return a + b;
+}
+        ";
+
+        create_llvm_execution_engine!(src, ee);
+        let f = func_addr_in_ee!(ee, "f", extern "C" fn(i64, i64) -> i64);
+
+        assert_eq!(5, f(2, 3));
+        assert_eq!(6, f(6, 5));
+        assert_eq!(7, f(3, 4));
+        assert_eq!(9, f(4, 5));
+    }
 }

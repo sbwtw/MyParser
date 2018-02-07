@@ -9,7 +9,7 @@ use parser::parser::type_analyzer::*;
 
 fn main() {
 
-    env_logger::init().unwrap();
+    env_logger::init();
 
     let src = "
 struct S { int a, b; char c; };
