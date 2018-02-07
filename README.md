@@ -16,7 +16,7 @@
 
 ## Examples
 ### JIT 即时编译示例
-```
+```rust
 extern crate llvm;
 extern crate parser;
 
@@ -64,7 +64,7 @@ fn main () {
 ```
 
 ### 使用递归下降分析器输出抽象语法树:
-```
+```rust
     let src = "
 int func_add(int a, int b)
 {
@@ -106,7 +106,7 @@ SyntaxTree
       Terminal(Number("0"))
 ```
 ### 符号检查
-```
+```rust
     let src = "
 struct S { int a, b; };
 
@@ -119,7 +119,7 @@ int a(int a, char b) {  }
     println!("result: {:?}\n", parser.run());
 ```
 > output: result: Ok(())
-```
+```rust
     let src = "
 // multi define of variable S::a
 struct S { int a, b; char a; };
