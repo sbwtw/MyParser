@@ -12,6 +12,7 @@ use llvm::*;
 use llvm_sys::*;
 
 use std::rc::Rc;
+use std::cell::RefCell;
 
 ///
 /// # JIT Examples.
@@ -78,7 +79,7 @@ impl LLVMIRGen for SyntaxType {
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Rc<Context>,
-    symbols: Rc<SymbolManager<*mut LLVMValue, ()>>,
+    symbols: Rc<RefCell<SymbolManager<*mut LLVMValue, ()>>>,
 }
 
 struct GeneraterContext {
@@ -95,7 +96,7 @@ impl<'t> LLVMIRGenerater<'t> {
         LLVMIRGenerater {
             ast: ast,
             context: Rc::new(context),
-            symbols: Rc::new(SymbolManager::new()),
+            symbols: Rc::new(RefCell::new(SymbolManager::new())),
         }
     }
 
@@ -133,6 +134,8 @@ impl<'t> LLVMIRGenerater<'t> {
         let ids = self.children_ids(node);
         let func_name = self.ident_name(&ids[1]).unwrap();
 
+        let __scope_guard = self.scope_guard();
+
         // argument types
         let mut arg_types: Vec<&Type> = vec![];
         let mut arg_names = vec![];
@@ -158,7 +161,7 @@ impl<'t> LLVMIRGenerater<'t> {
         // add argument symbols
         for (index, arg) in arg_names.iter().enumerate() {
             let name = { self.ident_name(&arg).unwrap() };
-            Rc::get_mut(&mut self.symbols).unwrap().push_symbol(name, func.get_param(index as u32).unwrap()).unwrap();
+            self.symbols.borrow_mut().push_symbol(name, func.get_param(index as u32).unwrap()).unwrap();
         }
 
         generator_context.current_func = Some(func);
@@ -187,7 +190,7 @@ impl<'t> LLVMIRGenerater<'t> {
                         context.builder.build_ret(ret_value);
                     },
                     Token::Identifier(ref name, _) => {
-                        context.builder.build_ret(*self.symbols.lookup(name).unwrap());
+                        context.builder.build_ret(*self.symbols.borrow().lookup(name).unwrap());
                     },
                     _ => {}
                 }
@@ -265,7 +268,7 @@ impl<'t> LLVMIRGenerater<'t> {
         match self.data(node_id) {
             &SyntaxType::Terminal(ref term) => {
                 match term.as_ref() {
-                    &Token::Identifier(ref name, _) => *self.symbols.lookup(name).unwrap(),
+                    &Token::Identifier(ref name, _) => *self.symbols.borrow().lookup(name).unwrap(),
                     &Token::Number(Numbers::SignedInt(n)) => self.context.cons(n as i64),
                     _ => unreachable!(),
                 }
@@ -303,10 +306,10 @@ impl<'t> LLVMIRGenerater<'t> {
         self.ast.children_ids(&node_id).unwrap().map(|x| x.clone()).collect()
     }
 
-    // #[inline]
-    // fn scope_guard(&self, func: Function) -> ScopeGuard<*mut LLVMValue, Function> {
-        // ScopeGuard::new(self.symbols.clone(), func)
-    // }
+    #[inline]
+    fn scope_guard(&self) -> ScopeGuard<*mut LLVMValue, ()> {
+        ScopeGuard::new(self.symbols.clone(), ())
+    }
 }
 
 #[cfg(test)]
