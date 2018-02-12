@@ -17,6 +17,9 @@ int f(int a, int b)
     if (a >= 5)
         return a;
 
+    if (b < 5)
+        return b;
+
     return a + b;
 }
     ";
@@ -28,8 +31,8 @@ int f(int a, int b)
     parser.dump();
 
     let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
-    generater.ir_gen();
+    let module = generater.ir_gen();
 
     println!();
-    generater.dump();
+    module.dump();
 }

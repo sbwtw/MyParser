@@ -44,13 +44,12 @@ use std::rc::Rc;
 /// parser.run().unwrap();
 ///
 /// let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
-/// generater.ir_gen();
+/// let module = generater.ir_gen();
 ///
 /// link_in_mcjit();
 /// initialize_native_target();
 /// initialize_native_asm_printer();
 ///
-/// let module = generater.module();
 /// let ee = ExecutionEngine::create_for_module(&module).unwrap();
 ///
 /// let f: extern "C" fn(i64, i64) -> i64 = unsafe {
@@ -79,40 +78,56 @@ impl LLVMIRGen for SyntaxType {
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Rc<Context>,
-    module: Rc<Module>,
     symbols: Rc<SymbolManager<*mut LLVMValue, ()>>,
+}
+
+struct GeneraterContext {
+    module: Module,
+    builder: Builder,
+    current_func: Option<Function>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
     pub fn new(ast: &'t SyntaxTree) -> LLVMIRGenerater<'t> {
 
         let context = Context::new();
-        let module = context.module_create_with_name("module");
 
         LLVMIRGenerater {
             ast: ast,
             context: Rc::new(context),
-            module: Rc::new(module),
             symbols: Rc::new(SymbolManager::new()),
         }
     }
 
-    pub fn ir_gen(&mut self) {
+    pub fn ir_gen(&mut self) -> Module {
+
+        let module = self.context.module_create_with_name("module");
+        let builder = self.context.create_builder();
+
+        let mut context = GeneraterContext {
+            module: module,
+            builder: builder,
+            current_func: None,
+        };
+
         let ids = self.children_ids(self.ast.root_node_id().unwrap());
-        self.function_gen(&ids[0]);
+        for id in ids {
+            self.dispatch_node(&mut context, &id);
+        }
+
+        context.module
     }
 
-    #[inline]
-    pub fn module(&self) -> Rc<Module> {
-        self.module.clone()
+    fn dispatch_node(&mut self, context: &mut GeneraterContext, id: &NodeId) {
+        match self.data(id) {
+            &SyntaxType::FuncDefine => self.function_gen(context, id),
+            &SyntaxType::ReturnStmt => self.return_stmt_gen(context, id),
+            &SyntaxType::IfStmt => self.if_stmt_gen(context, id),
+            _ => {},
+        }
     }
 
-    #[inline]
-    pub fn dump(&self) {
-        self.module.dump();
-    }
-
-    fn function_gen(&mut self, node: &NodeId) {
+    fn function_gen(&mut self, generator_context: &mut GeneraterContext, node: &NodeId) {
 
         let context = self.context.clone();
         let ids = self.children_ids(node);
@@ -135,11 +150,10 @@ impl<'t> LLVMIRGenerater<'t> {
         }
 
         let func_type = types::Function::new(self.llvm_type(&context, &ids[0]), &arg_types[..], false);
-        let mut func = Rc::get_mut(&mut self.module).unwrap().add_function(func_type, &func_name);
+        let mut func = generator_context.module.add_function(func_type, &func_name);
 
         let bb = context.append_basic_block(&mut func, "");
-        let mut builder = context.create_builder();
-        builder.position_at_end(bb);
+        generator_context.builder.position_at_end(bb);
 
         // add argument symbols
         for (index, arg) in arg_names.iter().enumerate() {
@@ -147,21 +161,19 @@ impl<'t> LLVMIRGenerater<'t> {
             Rc::get_mut(&mut self.symbols).unwrap().push_symbol(name, func.get_param(index as u32).unwrap()).unwrap();
         }
 
+        generator_context.current_func = Some(func);
+
         // start to build basic blocks
-        for id in ids.iter().skip(arg_types.len() + 2) {
-            match self.data(id) {
-                &SyntaxType::ReturnStmt => self.return_stmt_gen(&mut builder, id),
-                &SyntaxType::IfStmt => self.if_stmt_gen(&mut func, &mut builder, id),
-                _ => {},
-            }
+        for id in ids[arg_types.len() + 2..].iter() {
+            self.dispatch_node(generator_context, id);
         }
     }
 
-    fn return_stmt_gen(&self, builder: &mut Builder, node_id: &NodeId) {
+    fn return_stmt_gen(&mut self, context: &mut GeneraterContext, node_id: &NodeId) {
         let ids = self.children_ids(node_id);
 
         if ids.len() == 0 {
-            builder.build_ret_void();
+            context.builder.build_ret_void();
             return;
         }
 
@@ -172,69 +184,73 @@ impl<'t> LLVMIRGenerater<'t> {
                 match **token {
                     Token::Number(Numbers::SignedInt(v)) => {
                         let ret_value = self.context.cons(v as i64);
-                        builder.build_ret(ret_value);
+                        context.builder.build_ret(ret_value);
                     },
                     Token::Identifier(ref name, _) => {
-                        builder.build_ret(*self.symbols.lookup(name).unwrap());
+                        context.builder.build_ret(*self.symbols.lookup(name).unwrap());
                     },
                     _ => {}
                 }
             },
             &SyntaxType::Expr => {
-                let r = self.expr_gen(builder, &ids[0]);
-                builder.build_ret(r);
+                let r = self.expr_gen(context, &ids[0]);
+                context.builder.build_ret(r);
             }
             _ => {},
         }
     }
 
-    fn if_stmt_gen(&self, func: &mut Function, builder: &mut Builder, node_id: &NodeId) {
+    fn if_stmt_gen(&mut self, context: &mut GeneraterContext, node_id: &NodeId) {
         let childs = self.children_ids(node_id);
 
-        let lhs = self.llvm_value(builder, &childs[0]);
-        let rhs = self.llvm_value(builder, &childs[2]);
+        let lhs = self.llvm_value(context, &childs[0]);
+        let rhs = self.llvm_value(context, &childs[2]);
 
         // binary op
         let if_result = match *self.token(&childs[1]).unwrap() {
             Token::Operator(Operators::Equal) =>
-                builder.build_icmp(LLVMIntPredicate::LLVMIntEQ, lhs, rhs, "icmp_eq"),
+                context.builder.build_icmp(LLVMIntPredicate::LLVMIntEQ, lhs, rhs, "icmp_eq"),
             Token::Operator(Operators::NotEqual) =>
-                builder.build_icmp(LLVMIntPredicate::LLVMIntNE, lhs, rhs, "icmp_ne"),
+                context.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, lhs, rhs, "icmp_ne"),
             Token::Operator(Operators::Greater) =>
-                builder.build_icmp(LLVMIntPredicate::LLVMIntSGT, lhs, rhs, "icmp_sgt"),
+                context.builder.build_icmp(LLVMIntPredicate::LLVMIntSGT, lhs, rhs, "icmp_sgt"),
             Token::Operator(Operators::GreaterEqual) =>
-                builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, lhs, rhs, "icmp_sge"),
+                context.builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, lhs, rhs, "icmp_sge"),
+            Token::Operator(Operators::Less) =>
+                context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLT, lhs, rhs, "icmp_slt"),
+            Token::Operator(Operators::LessEqual) =>
+                context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLE, lhs, rhs, "icmp_sle"),
             _ => unreachable!(),
         };
 
-        let tb = self.context.append_basic_block(func, "if");
-        let fb = self.context.append_basic_block(func, "endif");
-        builder.build_cond_br(if_result, tb, fb);
+        let tb = self.context.append_basic_block(context.current_func.as_mut().unwrap(), "if");
+        let fb = self.context.append_basic_block(context.current_func.as_mut().unwrap(), "endif");
+        context.builder.build_cond_br(if_result, tb, fb);
 
         // move to true branch
-        builder.position_at_end(tb);
+        context.builder.position_at_end(tb);
         if childs.len() > 3 {
-            self.return_stmt_gen(builder, &childs[3]);
+            self.return_stmt_gen(context, &childs[3]);
         }
 
         // move to end
-        builder.position_at_end(fb);
+        context.builder.position_at_end(fb);
     }
 
-    fn expr_gen(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
+    fn expr_gen(&self, context: &mut GeneraterContext, node_id: &NodeId) -> *mut LLVMValue {
         let childs = self.children_ids(node_id);
         assert!(childs.len() >= 3);
 
-        let mut lhs = self.llvm_value(builder, &childs[0]);
+        let mut lhs = self.llvm_value(context, &childs[0]);
         let mut current_op = 1;
         loop {
-            let rhs = self.llvm_value(builder, &childs[current_op + 1]);
+            let rhs = self.llvm_value(context, &childs[current_op + 1]);
 
             lhs = match *self.token(&childs[current_op]).unwrap() {
-                Token::Operator(Operators::Add) => builder.build_add(lhs, rhs, "add"),
-                Token::Operator(Operators::Mul) => builder.build_mul(lhs, rhs, "mul"),
-                Token::Operator(Operators::Minus) => builder.build_mul(lhs, rhs, "sub"),
-                Token::Operator(Operators::Division) => builder.build_mul(lhs, rhs, "div"),
+                Token::Operator(Operators::Add) => context.builder.build_add(lhs, rhs, "add"),
+                Token::Operator(Operators::Mul) => context.builder.build_mul(lhs, rhs, "mul"),
+                Token::Operator(Operators::Minus) => context.builder.build_mul(lhs, rhs, "sub"),
+                Token::Operator(Operators::Division) => context.builder.build_mul(lhs, rhs, "div"),
                 _ => unreachable!(),
             };
 
@@ -245,7 +261,7 @@ impl<'t> LLVMIRGenerater<'t> {
         lhs
     }
 
-    fn llvm_value(&self, builder: &mut Builder, node_id: &NodeId) -> *mut LLVMValue {
+    fn llvm_value(&self, context: &mut GeneraterContext, node_id: &NodeId) -> *mut LLVMValue {
         match self.data(node_id) {
             &SyntaxType::Terminal(ref term) => {
                 match term.as_ref() {
@@ -254,7 +270,7 @@ impl<'t> LLVMIRGenerater<'t> {
                     _ => unreachable!(),
                 }
             }
-            &SyntaxType::Expr => self.expr_gen(builder, node_id),
+            &SyntaxType::Expr => self.expr_gen(context, node_id),
             _ => unreachable!(),
         }
     }
@@ -309,13 +325,12 @@ mod test {
             parser.run().unwrap();
 
             let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
-            generater.ir_gen();
+            let module = generater.ir_gen();
 
             link_in_mcjit();
             initialize_native_target();
             initialize_native_asm_printer();
 
-            let module = generater.module();
             let $ee = ExecutionEngine::create_for_module(&module).unwrap();
         };
     }
