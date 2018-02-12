@@ -124,8 +124,20 @@ impl<'t> LLVMIRGenerater<'t> {
             &SyntaxType::FuncDefine => self.function_gen(context, id),
             &SyntaxType::ReturnStmt => self.return_stmt_gen(context, id),
             &SyntaxType::IfStmt => self.if_stmt_gen(context, id),
+            &SyntaxType::VariableDefine => self.variable_define(context, id),
             _ => {},
         }
+    }
+
+    fn variable_define(&mut self, generater_context: &mut GeneraterContext, id: &NodeId) {
+        let ids = self.children_ids(id);
+
+        let context = self.context.clone();
+        let var_name = self.ident_name(&ids[1]).unwrap();
+        let var_type = i64::get_type_in_context(&context);
+
+        let value = generater_context.builder.build_alloca(var_type.into(), &var_name);
+        self.symbols.borrow_mut().push_symbol(var_name, value).unwrap();
     }
 
     fn function_gen(&mut self, generator_context: &mut GeneraterContext, node: &NodeId) {
