@@ -1,11 +1,16 @@
 
 extern crate parser;
 extern crate env_logger;
+extern crate llvm;
+
+use llvm::*;
 
 use parser::lexer::*;
 use parser::parser::*;
 use parser::parser::recursive_descent::*;
 use parser::parser::llvm_ir_generater::*;
+
+use std::mem;
 
 fn main() {
 
@@ -32,4 +37,13 @@ int f(int a, int b)
 
     println!();
     module.dump();
+
+    link_in_mcjit();
+    initialize_native_target();
+    initialize_native_asm_printer();
+
+    let ee = ExecutionEngine::create_for_module(&module).unwrap();
+
+    let f: extern "C" fn(i64, i64) -> i64 = unsafe { mem::transmute(ee.get_function_address("f").unwrap()) };
+    assert_eq!(f(3, 2), 5);
 }

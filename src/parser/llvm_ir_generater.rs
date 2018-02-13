@@ -125,8 +125,18 @@ impl<'t> LLVMIRGenerater<'t> {
             &SyntaxType::ReturnStmt => self.return_stmt_gen(context, id),
             &SyntaxType::IfStmt => self.if_stmt_gen(context, id),
             &SyntaxType::VariableDefine => self.variable_define(context, id),
+            &SyntaxType::AssignStmt => self.assign_stmt(context, id),
             _ => {},
         }
+    }
+
+    fn assign_stmt(&mut self, generater_context: &mut GeneraterContext, id: &NodeId) {
+        let ids = self.children_ids(id);
+
+        let lhs = self.llvm_value(generater_context, &ids[0]);
+        let rhs = self.llvm_value(generater_context, &ids[1]);
+
+        generater_context.builder.build_store(rhs, lhs);
     }
 
     fn variable_define(&mut self, generater_context: &mut GeneraterContext, id: &NodeId) {
@@ -137,6 +147,7 @@ impl<'t> LLVMIRGenerater<'t> {
         let var_type = i64::get_type_in_context(&context);
 
         let value = generater_context.builder.build_alloca(var_type.into(), &var_name);
+
         self.symbols.borrow_mut().push_symbol(var_name, value).unwrap();
     }
 
@@ -202,7 +213,8 @@ impl<'t> LLVMIRGenerater<'t> {
                         context.builder.build_ret(ret_value);
                     },
                     Token::Identifier(ref name, _) => {
-                        context.builder.build_ret(*self.symbols.borrow().lookup(name).unwrap());
+                        let value = self.ident_value(context, name);
+                        context.builder.build_ret(value);
                     },
                     _ => {}
                 }
@@ -280,7 +292,7 @@ impl<'t> LLVMIRGenerater<'t> {
         match self.data(node_id) {
             &SyntaxType::Terminal(ref term) => {
                 match term.as_ref() {
-                    &Token::Identifier(ref name, _) => *self.symbols.borrow().lookup(name).unwrap(),
+                    &Token::Identifier(ref name, _) => self.ident_value(context, name),
                     &Token::Number(Numbers::SignedInt(n)) => self.context.cons(n as i64),
                     _ => unreachable!(),
                 }
@@ -296,6 +308,13 @@ impl<'t> LLVMIRGenerater<'t> {
             Token::KeyWord(KeyWords::Int) => i64::get_type_in_context(&context),
             _ => panic!(),
         }
+    }
+
+    fn ident_value(&self, context: &mut GeneraterContext, name: &str) -> *mut LLVMValue {
+        let value = *self.symbols.borrow().lookup(name).unwrap();
+
+        // TODO: test value type, if it's a pointer, need to dereference.
+        value
     }
 
     #[inline]
