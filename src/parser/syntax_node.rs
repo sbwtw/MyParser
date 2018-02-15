@@ -24,7 +24,7 @@ pub enum SyntaxType {
     ForLoop,
     FuncDefine,
     FuncDeclare,
-    FuncArg,
+    FuncParam,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;

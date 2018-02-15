@@ -103,7 +103,7 @@ impl<'t> SymbolChecker<'t> {
         let mut index = 2;
         while index < ids.len() {
             match self.data(ids[index]) {
-                &SyntaxType::FuncArg => self.check_func_arg(ids[index])?,
+                &SyntaxType::FuncParam => self.check_func_arg(ids[index])?,
                 _ => break,
             }
 

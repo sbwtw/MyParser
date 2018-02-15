@@ -294,7 +294,7 @@ short, int, long, unsigned, ...
 
 #### 函数声明
 - func_declare:
-    - `func_ret_type` `func_name` `(` `func_arg_list` `)` `;`
+    - `func_ret_type` `func_name` `(` `func_param_list` `)` `;`
 
 - func_name
     - `identifier`
@@ -302,21 +302,21 @@ short, int, long, unsigned, ...
 - func_ret_type:
     - `type`
 
-- func_arg_list:
-    - `func_arg` `func_arg_list_tail`
+- func_param_list:
+    - `func_param` `func_param_list_tail`
     - `epsilon`
 
-- func_arg_list_tail:
-    - `,` `func_arg` `func_arg_list_tail`
+- func_param_list_tail:
+    - `,` `func_param` `func_param_list_tail`
     - `epsilon`
 
-- func_arg:
-    - `func_arg_type` `func_arg_name`
+- func_param:
+    - `func_param_type` `func_param_name`
 
-- func_arg_type:
+- func_param_type:
     - `type`
 
-- func_arg_name:
+- func_param_name:
     - `identifier`
 
 #### 结构体定义
@@ -334,8 +334,11 @@ short, int, long, unsigned, ...
 
 #### 函数定义
 - function:
-    - `func_ret_type` `func_name` `(` `func_arg_list` `)` `{` `func_body` `}`
+    - `func_ret_type` `func_name` `(` `func_param_list` `)` `{` `func_body` `}`
 
 - func_body:
     - `stmt_list`
 
+#### 函数调用
+- func_call:
+    - `func_name` `(` `func_arg_list` `)`

@@ -165,7 +165,7 @@ impl<'t> LLVMIRGenerater<'t> {
         let mut arg_names = vec![];
         for id in ids.iter().skip(2) {
             match self.data(id) {
-                &SyntaxType::FuncArg => {
+                &SyntaxType::FuncParam => {
                     let childs = self.children_ids(id);
                     let llvm_type = self.llvm_type(&context, &childs[0]);
 

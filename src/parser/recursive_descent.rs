@@ -726,7 +726,7 @@ impl RecursiveDescentParser {
     // `func_arg_type` `func_arg_name`
     fn match_func_arg(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
-        let self_id = insert_type!(self.tree, root, SyntaxType::FuncArg);
+        let self_id = insert_type!(self.tree, root, SyntaxType::FuncParam);
 
         loop {
             // func_arg_type
