@@ -342,3 +342,11 @@ short, int, long, unsigned, ...
 #### 函数调用
 - func_call:
     - `func_name` `(` `func_arg_list` `)`
+
+- func_arg_list:
+    - `func_arg`
+    - `,` `func_arg_list`
+    - `epsilon`
+
+- func_arg:
+    - `identifier`
