@@ -872,11 +872,6 @@ impl RecursiveDescentParser {
 
         return Some(&self.tokens[self.current]);
     }
-
-    // symbols check
-    fn symbols_check(&mut self) -> ParserResult {
-        Ok(())
-    }
 }
 
 impl Parser for RecursiveDescentParser {
@@ -942,7 +937,7 @@ mod test {
 
             assert!(parser.$func(&id));
 
-            if ($dump) { parser.dump(); }
+            if $dump { parser.dump(); }
 
             assert_eq!(parser.syntax_tree().height(), $tree.height());
 

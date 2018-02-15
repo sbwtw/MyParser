@@ -185,7 +185,7 @@ impl<'t> LLVMIRGenerater<'t> {
         // add argument symbols
         for (index, arg) in arg_names.iter().enumerate() {
             let name = { self.ident_name(&arg).unwrap() };
-            self.symbols.borrow_mut().push_symbol(name, (func.get_param(index as u32).unwrap(), ValueType::NoType));
+            self.symbols.borrow_mut().push_symbol(name, (func.get_param(index as u32).unwrap(), ValueType::NoType)).ok();
         }
 
         generator_context.current_func = Some(func);
@@ -316,7 +316,7 @@ impl<'t> LLVMIRGenerater<'t> {
         match self.symbols.borrow().lookup(name) {
             Some(&(value, ref type_)) => {
                 match type_ {
-                    &ValueType::Ptr(ref ptr_type) => self.dereference_ptr(context, value, type_),
+                    &ValueType::Ptr(_) => self.dereference_ptr(context, value, type_),
                     _ => value,
                 }
             },

@@ -11,6 +11,6 @@ fn main() {
     let f = File::open("test/test.c").unwrap();
     let mut parser = RecursiveDescentParser::new(Lexer::new(f));
 
-    parser.run();
+    parser.run().ok();
     parser.dump();
 }

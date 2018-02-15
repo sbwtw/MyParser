@@ -474,7 +474,7 @@ mod test {
     fn test_lexer_panic() {
         let src = "/*asd";
 
-        let mut lexer = Lexer::new(src.as_bytes());
+        let lexer = Lexer::new(src.as_bytes());
         let _ = lexer.count();
     }
 }

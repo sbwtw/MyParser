@@ -11,6 +11,6 @@ fn main() {
 
     println!("\n{}\n", src);
 
-    parser.run();
+    parser.run().ok();
     parser.dump();
 }

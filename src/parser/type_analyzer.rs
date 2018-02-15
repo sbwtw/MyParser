@@ -1,13 +1,11 @@
 
 use token::*;
 use token::Token::*;
-// use lexer::Lexer;
-use parser::*;
 use parser::syntax_node::*;
 
 use id_tree::*;
 
-use std::rc::Rc;
+// use std::rc::Rc;
 use std::collections::HashMap;
 
 pub struct TypeAnalyzer<'t> {
@@ -39,22 +37,22 @@ impl<'t> TypeAnalyzer<'t> {
         }
     }
 
-    fn type_of_ident(&self, id: &NodeId) -> Type {
+    fn type_of_ident(&self, _id: &NodeId) -> Type {
         Type::NoType
     }
 
-    #[inline]
-    fn token(&self, node_id: &NodeId) -> Option<Rc<Token>> {
-        self.data(node_id).token()
-    }
+    // #[inline]
+    // fn token(&self, node_id: &NodeId) -> Option<Rc<Token>> {
+    //     self.data(node_id).token()
+    // }
 
     #[inline]
     fn data(&self, node_id: &NodeId) -> &SyntaxType {
         self.ast.get(node_id).unwrap().data()
     }
 
-    #[inline]
-    fn children_ids(&self, node_id: &NodeId) -> Vec<&NodeId> {
-        self.ast.children_ids(&node_id).unwrap().collect()
-    }
+    // #[inline]
+    // fn children_ids(&self, node_id: &NodeId) -> Vec<&NodeId> {
+    //     self.ast.children_ids(&node_id).unwrap().collect()
+    // }
 }

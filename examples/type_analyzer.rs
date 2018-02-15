@@ -5,7 +5,6 @@ extern crate env_logger;
 use parser::lexer::*;
 use parser::parser::*;
 use parser::parser::recursive_descent::*;
-use parser::parser::type_analyzer::*;
 
 fn main() {
 
