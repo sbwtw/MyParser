@@ -410,7 +410,8 @@ impl RecursiveDescentParser {
         self.match_assign_stmt(root) ||
         self.match_break_stmt(root) ||
         self.match_return_stmt(root) ||
-        self.match_variable_define_stmt(root)
+        self.match_variable_define_stmt(root) ||
+        self.match_func_call(root)
     }
 
     // - `if_stmt`
@@ -583,7 +584,7 @@ impl RecursiveDescentParser {
         false
     }
 
-    // `return` `return_expr`
+    // `return` `return_type`
     fn match_return_stmt(&mut self, root: &NodeId) -> bool {
         let cur = self.current;
         let self_id = insert_type!(self.tree, root, SyntaxType::ReturnStmt);
@@ -610,10 +611,12 @@ impl RecursiveDescentParser {
         false
     }
 
+    // - `func_call`
     // - `bool_expr`
     // - `epsilon`
     fn match_return_type(&mut self, root: &NodeId) -> bool {
-        self.match_bool_expr(root);
+        let _ = self.match_func_call(root) ||
+                self.match_bool_expr(root);
 
         true
     }
@@ -736,6 +739,69 @@ impl RecursiveDescentParser {
             };
 
             match self.match_identifier() {
+                Some(id) => insert!(self.tree, self_id, id),
+                _ => break,
+            };
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // `func_name` `(` `func_arg_list` `)`
+    fn match_func_call(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::FuncCall);
+
+        loop {
+            // func_name
+            match self.match_identifier() {
+                Some(id) => insert!(self.tree, self_id, id),
+                _ => break,
+            };
+
+            if !self.term(Token::Bracket(Brackets::LeftParenthesis)) { break; }
+            if !self.match_func_arg_list(&self_id) { break; }
+            if !self.term(Token::Bracket(Brackets::RightParenthesis)) { break; }
+
+            return true;
+        }
+
+        self.current = cur;
+        self.tree.remove_node(self_id, DropChildren).unwrap();
+        false
+    }
+
+    // `func_arg` `func_arg_list_tail`
+    // `epsilon`
+    fn match_func_arg_list(&mut self, root: &NodeId) -> bool {
+
+        if self.match_func_arg(root) {
+            return self.match_func_arg_list_tail(root);
+        }
+
+        true
+    }
+
+    fn match_func_arg_list_tail(&mut self, root: &NodeId) -> bool {
+
+        if self.term(Token::Comma) {
+            return self.match_func_arg(root) &&
+                   self.match_func_arg_list_tail(root);
+        }
+
+        true
+    }
+
+    fn match_func_arg(&mut self, root: &NodeId) -> bool {
+        let cur = self.current;
+        let self_id = insert_type!(self.tree, root, SyntaxType::FuncArg);
+
+        loop {
+            match self.match_expr_ident() {
                 Some(id) => insert!(self.tree, self_id, id),
                 _ => break,
             };

@@ -26,6 +26,7 @@ pub enum SyntaxType {
     FuncDeclare,
     FuncParam,
     FuncArg,
+    FuncCall,
 }
 
 pub type SyntaxTree = Tree<SyntaxType>;
