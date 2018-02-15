@@ -6,6 +6,7 @@ use token::Token;
 use token::KeyWords;
 use token::Operators;
 use token::Numbers;
+use token::Type as ValueType;
 
 use id_tree::*;
 use llvm::*;
@@ -79,7 +80,7 @@ impl LLVMIRGen for SyntaxType {
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Rc<Context>,
-    symbols: Rc<RefCell<SymbolManager<*mut LLVMValue, ()>>>,
+    symbols: Rc<RefCell<SymbolManager<(*mut LLVMValue, ValueType), ()>>>,
 }
 
 struct GeneraterContext {
@@ -148,7 +149,7 @@ impl<'t> LLVMIRGenerater<'t> {
 
         let value = generater_context.builder.build_alloca(var_type.into(), &var_name);
 
-        self.symbols.borrow_mut().push_symbol(var_name, value).unwrap();
+        self.symbols.borrow_mut().push_symbol(var_name, (value, ValueType::Ptr(Box::new(ValueType::NoType)))).unwrap();
     }
 
     fn function_gen(&mut self, generator_context: &mut GeneraterContext, node: &NodeId) {
@@ -184,7 +185,7 @@ impl<'t> LLVMIRGenerater<'t> {
         // add argument symbols
         for (index, arg) in arg_names.iter().enumerate() {
             let name = { self.ident_name(&arg).unwrap() };
-            self.symbols.borrow_mut().push_symbol(name, func.get_param(index as u32).unwrap()).unwrap();
+            self.symbols.borrow_mut().push_symbol(name, (func.get_param(index as u32).unwrap(), ValueType::NoType));
         }
 
         generator_context.current_func = Some(func);
@@ -292,7 +293,7 @@ impl<'t> LLVMIRGenerater<'t> {
         match self.data(node_id) {
             &SyntaxType::Terminal(ref term) => {
                 match term.as_ref() {
-                    &Token::Identifier(ref name, _) => self.ident_value(context, name),
+                    &Token::Identifier(ref name, _) => self.symbols.borrow().lookup(name).unwrap().0,
                     &Token::Number(Numbers::SignedInt(n)) => self.context.cons(n as i64),
                     _ => unreachable!(),
                 }
@@ -311,10 +312,26 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn ident_value(&self, context: &mut GeneraterContext, name: &str) -> *mut LLVMValue {
-        let value = *self.symbols.borrow().lookup(name).unwrap();
 
-        // TODO: test value type, if it's a pointer, need to dereference.
-        value
+        match self.symbols.borrow().lookup(name) {
+            Some(&(value, ref type_)) => {
+                match type_ {
+                    &ValueType::Ptr(ref ptr_type) => self.dereference_ptr(context, value, type_),
+                    _ => value,
+                }
+            },
+            _ => panic!()
+        }
+    }
+
+    fn dereference_ptr(&self, context: &mut GeneraterContext, value: *mut LLVMValue, type_: &ValueType) -> *mut LLVMValue {
+        match type_ {
+            &ValueType::Ptr(ref ptr_type) => {
+                let deref = context.builder.build_load(value, "deref");
+                self.dereference_ptr(context, deref, ptr_type)
+            },
+            _ => value,
+        }
     }
 
     #[inline]
@@ -338,7 +355,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     #[inline]
-    fn scope_guard(&self) -> ScopeGuard<*mut LLVMValue, ()> {
+    fn scope_guard(&self) -> ScopeGuard<(*mut LLVMValue, ValueType), ()> {
         ScopeGuard::new(self.symbols.clone(), ())
     }
 }
@@ -396,6 +413,26 @@ int f(int a, int b)
 
         assert_eq!(5, f(2, 3));
         assert_eq!(6, f(6, 5));
+        assert_eq!(7, f(3, 4));
+        assert_eq!(9, f(4, 5));
+    }
+
+    #[test]
+    fn test_local_variable()
+    {
+        let src = "
+int f(int a, int b)
+{
+    int c;
+    c = a + b;
+
+    return c;
+}";
+
+        create_llvm_execution_engine!(src, ee);
+        let f = func_addr_in_ee!(ee, "f", extern "C" fn(i64, i64) -> i64);
+
+        assert_eq!(5, f(2, 3));
         assert_eq!(7, f(3, 4));
         assert_eq!(9, f(4, 5));
     }
