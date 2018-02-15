@@ -436,4 +436,29 @@ int f(int a, int b)
         assert_eq!(7, f(3, 4));
         assert_eq!(9, f(4, 5));
     }
+
+    #[ignore]
+    #[test]
+    fn test_func_call()
+    {
+        let src = "
+int f(int a, int b)
+{
+    int c;
+    c = a + b;
+
+    return c;
+}
+
+int f1(int a)
+{
+    return f(a, a + 1);
+}
+";
+
+        create_llvm_execution_engine!(src, ee);
+        let f = func_addr_in_ee!(ee, "f1", extern "C" fn(i64) -> i64);
+
+        assert_eq!(5, f(2));
+    }
 }
