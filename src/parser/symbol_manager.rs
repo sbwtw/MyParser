@@ -40,13 +40,13 @@ impl<V, S> SymbolManager<V, S> {
         self.symbols.len()
     }
 
-    // pub fn current_scope(&self) -> Option<&S> {
-    //     self.scopes.last()
-    // }
+    pub fn current_scope(&self) -> Option<&S> {
+        self.scopes.last()
+    }
 
-    // pub fn current_scope_mut(&mut self) -> Option<&mut S> {
-    //     self.scopes.last_mut()
-    // }
+    pub fn current_scope_mut(&mut self) -> Option<&mut S> {
+        self.scopes.last_mut()
+    }
 
     pub fn lookup<T: AsRef<str>>(&self, symbol: T) -> Option<&V> {
         let s = symbol.as_ref();

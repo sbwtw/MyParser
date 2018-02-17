@@ -80,13 +80,12 @@ impl LLVMIRGen for SyntaxType {
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Rc<Context>,
-    symbols: Rc<RefCell<SymbolManager<(*mut LLVMValue, ValueType), ()>>>,
+    symbols: Rc<RefCell<SymbolManager<(*mut LLVMValue, ValueType), Function>>>,
 }
 
 struct GeneraterContext {
     module: Module,
     builder: Builder,
-    current_func: Option<Function>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -109,7 +108,6 @@ impl<'t> LLVMIRGenerater<'t> {
         let mut context = GeneraterContext {
             module: module,
             builder: builder,
-            current_func: None,
         };
 
         let ids = self.children_ids(self.ast.root_node_id().unwrap());
@@ -158,8 +156,6 @@ impl<'t> LLVMIRGenerater<'t> {
         let ids = self.children_ids(node);
         let func_name = self.ident_name(&ids[1]).unwrap();
 
-        let __scope_guard = self.scope_guard();
-
         // argument types
         let mut arg_types: Vec<&Type> = vec![];
         let mut arg_names = vec![];
@@ -182,13 +178,16 @@ impl<'t> LLVMIRGenerater<'t> {
         let bb = context.append_basic_block(&mut func, "");
         generator_context.builder.position_at_end(bb);
 
-        // add argument symbols
-        for (index, arg) in arg_names.iter().enumerate() {
-            let name = { self.ident_name(&arg).unwrap() };
-            self.symbols.borrow_mut().push_symbol(name, (func.get_param(index as u32).unwrap(), ValueType::NoType)).ok();
-        }
+        let __scope_guard = self.scope_guard(func);
 
-        generator_context.current_func = Some(func);
+        let func_params: Vec<*mut LLVMValue> = arg_names.iter().enumerate().map(|(index, _)| {
+            self.symbols.borrow().current_scope().unwrap().get_param(index as u32).unwrap()
+        }).collect();
+
+        for (name, value) in arg_names.iter().zip(func_params.iter()) {
+            let name = { self.ident_name(&name).unwrap() };
+            self.symbols.borrow_mut().push_symbol(name, (*value, ValueType::NoType)).ok();
+        }
 
         // start to build basic blocks
         for id in ids[arg_types.len() + 2..].iter() {
@@ -228,6 +227,9 @@ impl<'t> LLVMIRGenerater<'t> {
         }
     }
 
+    // fn func_call_gen(&mut self, context: &mut GeneraterContext, node_id: &NodeId) -> *mut LLVMValue {
+    // }
+
     fn if_stmt_gen(&mut self, context: &mut GeneraterContext, node_id: &NodeId) {
         let childs = self.children_ids(node_id);
 
@@ -251,9 +253,18 @@ impl<'t> LLVMIRGenerater<'t> {
             _ => unreachable!(),
         };
 
-        let tb = self.context.append_basic_block(context.current_func.as_mut().unwrap(), "if");
-        let fb = self.context.append_basic_block(context.current_func.as_mut().unwrap(), "endif");
-        context.builder.build_cond_br(if_result, tb, fb);
+        let (tb, fb) = {
+            let symbols = self.symbols.clone();
+            let mut symbols = symbols.borrow_mut();
+            let mut scope = symbols.current_scope_mut();
+            let ref mut func = scope.as_mut().unwrap();
+
+            let tb = self.context.append_basic_block(func, "if");
+            let fb = self.context.append_basic_block(func, "endif");
+            context.builder.build_cond_br(if_result, tb, fb);
+
+            (tb, fb)
+        };
 
         // move to true branch
         context.builder.position_at_end(tb);
@@ -355,8 +366,8 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     #[inline]
-    fn scope_guard(&self) -> ScopeGuard<(*mut LLVMValue, ValueType), ()> {
-        ScopeGuard::new(self.symbols.clone(), ())
+    fn scope_guard(&self, func: Function) -> ScopeGuard<(*mut LLVMValue, ValueType), Function> {
+        ScopeGuard::new(self.symbols.clone(), func)
     }
 }
 
