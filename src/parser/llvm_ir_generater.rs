@@ -77,10 +77,20 @@ impl LLVMIRGen for SyntaxType {
     }
 }
 
+enum SymbolType {
+    LLVMValue(*mut LLVMValue),
+    LLVMFunc(Function),
+}
+
+struct SymbolValue {
+    symbol: SymbolType,
+    value: ValueType,
+}
+
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Rc<Context>,
-    symbols: Rc<RefCell<SymbolManager<(*mut LLVMValue, ValueType), Function>>>,
+    symbols: Rc<RefCell<SymbolManager<SymbolValue, Function>>>,
 }
 
 struct GeneraterContext {
@@ -147,7 +157,11 @@ impl<'t> LLVMIRGenerater<'t> {
 
         let value = generater_context.builder.build_alloca(var_type.into(), &var_name);
 
-        self.symbols.borrow_mut().push_symbol(var_name, (value, ValueType::Ptr(Box::new(ValueType::NoType)))).unwrap();
+        let symbol_value = SymbolValue {
+            symbol: SymbolType::LLVMValue(value),
+            value: ValueType::Ptr(Box::new(ValueType::NoType)),
+        };
+        self.symbols.borrow_mut().push_symbol(var_name, symbol_value).ok();
     }
 
     fn function_gen(&mut self, generator_context: &mut GeneraterContext, node: &NodeId) {
@@ -186,7 +200,11 @@ impl<'t> LLVMIRGenerater<'t> {
 
         for (name, value) in arg_names.iter().zip(func_params.iter()) {
             let name = { self.ident_name(&name).unwrap() };
-            self.symbols.borrow_mut().push_symbol(name, (*value, ValueType::NoType)).ok();
+            let symbol_value = SymbolValue {
+                symbol: SymbolType::LLVMValue(*value),
+                value: ValueType::NoType,
+            };
+            self.symbols.borrow_mut().push_symbol(name, symbol_value).ok();
         }
 
         // start to build basic blocks
@@ -304,7 +322,11 @@ impl<'t> LLVMIRGenerater<'t> {
         match self.data(node_id) {
             &SyntaxType::Terminal(ref term) => {
                 match term.as_ref() {
-                    &Token::Identifier(ref name, _) => self.symbols.borrow().lookup(name).unwrap().0,
+                    &Token::Identifier(ref name, _) =>
+                        match self.symbols.borrow().lookup(name).unwrap().symbol {
+                            SymbolType::LLVMValue(v) => v,
+                            _ => unreachable!(),
+                        },
                     &Token::Number(Numbers::SignedInt(n)) => self.context.cons(n as i64),
                     _ => unreachable!(),
                 }
@@ -324,15 +346,21 @@ impl<'t> LLVMIRGenerater<'t> {
 
     fn ident_value(&self, context: &mut GeneraterContext, name: &str) -> *mut LLVMValue {
 
-        match self.symbols.borrow().lookup(name) {
-            Some(&(value, ref type_)) => {
-                match type_ {
-                    &ValueType::Ptr(_) => self.dereference_ptr(context, value, type_),
-                    _ => value,
-                }
-            },
-            _ => panic!()
-        }
+        self.symbols.borrow().lookup(name).map(|symbol_value| {
+            match symbol_value.value {
+                ValueType::Ptr(_) =>
+                    match symbol_value.symbol {
+                        SymbolType::LLVMValue(value) =>
+                            self.dereference_ptr(context, value, &symbol_value.value),
+                        _ => unreachable!(),
+                    },
+                _ =>
+                    match symbol_value.symbol {
+                        SymbolType::LLVMValue(value) => value,
+                        _ => unreachable!(),
+                    },
+            }
+        }).unwrap()
     }
 
     fn dereference_ptr(&self, context: &mut GeneraterContext, value: *mut LLVMValue, type_: &ValueType) -> *mut LLVMValue {
@@ -366,7 +394,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     #[inline]
-    fn scope_guard(&self, func: Function) -> ScopeGuard<(*mut LLVMValue, ValueType), Function> {
+    fn scope_guard(&self, func: Function) -> ScopeGuard<SymbolValue, Function> {
         ScopeGuard::new(self.symbols.clone(), func)
     }
 }
