@@ -107,7 +107,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "llvm"
 version = "0.0.1"
-source = "git+https://github.com/gsingh93/llvm#70e2afca97cf044236a0a1a776c1a19b07e98bdc"
 dependencies = [
  "error-chain 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -154,7 +153,7 @@ version = "0.1.0"
 dependencies = [
  "env_logger 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "id_tree 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "llvm 0.0.1 (git+https://github.com/gsingh93/llvm)",
+ "llvm 0.0.1",
  "llvm-sys 50.0.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "matches 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -358,7 +357,6 @@ dependencies = [
 "checksum lazy_static 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)" = "76f033c7ad61445c5b347c7382dd1237847eb1bce590fe50365dcb33d546be73"
 "checksum lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c8f31047daa365f19be14b47c29df4f7c3b581832407daabe6ae77397619237d"
 "checksum libc 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)" = "1e5d97d6708edaa407429faa671b942dc0f2727222fb6b6539bf1db936e4b121"
-"checksum llvm 0.0.1 (git+https://github.com/gsingh93/llvm)" = "<none>"
 "checksum llvm-sys 50.0.3 (registry+https://github.com/rust-lang/crates.io-index)" = "19907e8b5a0d9eec3ad2c9c769a9d9b509756edc63957ecd94d9739850702aee"
 "checksum log 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "89f010e843f2b1a31dbd316b3b8d443758bc634bed37aabade59c686d644e0a2"
 "checksum matches 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "100aabe6b8ff4e4a7e32c1c13523379802df0772b82466207ac25b013f193376"

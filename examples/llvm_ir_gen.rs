@@ -19,10 +19,10 @@ fn main() {
     let src = "
 int f(int a, int b)
 {
-    int c;
-    c = a + b;
+    if (a >= 5)
+        return a;
 
-    return c;
+    return a + b;
 }
 
 int f1(int a)
@@ -51,4 +51,7 @@ int f1(int a)
 
     let f: extern "C" fn(i64, i64) -> i64 = unsafe { mem::transmute(ee.get_function_address("f").unwrap()) };
     assert_eq!(f(3, 2), 5);
+
+    // let f: extern "C" fn(i64) -> i64 = unsafe { mem::transmute(ee.get_function_address("f1").unwrap()) };
+    // assert_eq!(f(1), 3);
 }
