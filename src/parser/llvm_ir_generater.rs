@@ -17,7 +17,7 @@ use inkwell::execution_engine::{ExecutionEngine, Symbol};
 use inkwell::module::Module;
 use inkwell::targets::{InitializationConfig, Target};
 use inkwell::types::{AnyType, BasicTypeEnum, BasicType, IntType};
-use inkwell::values::BasicValue;
+use inkwell::values::{BasicValue, BasicValueEnum, IntValue};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -167,26 +167,6 @@ impl<'t> LLVMIRGenerater<'t> {
         let bb = self.context.append_basic_block(&function, &fn_name);
         self.builder.position_at_end(&bb);
 
-        self.dispatch_node(&ids[2]);
-
-        self.module.print_to_stderr();
-/*
-let function = module.add_function("sum", &fn_type, None);
-    let basic_block = context.append_basic_block(&function, "entry");
-
-    builder.position_at_end(&basic_block);
-
-    let x = function.get_nth_param(0)?.into_int_value();
-    let y = function.get_nth_param(1)?.into_int_value();
-    let z = function.get_nth_param(2)?.into_int_value();
-
-    let sum = builder.build_int_add(x, y, "sum");
-    let sum = builder.build_int_add(sum, z, "sum");
-
-    builder.build_return(Some(&sum));
-
-unsafe { execution_engine.get_function("sum").ok() }*/
-
         // argument types
         // let mut arg_types: Vec<&Type> = vec![];
         // let mut arg_names = vec![];
@@ -224,14 +204,16 @@ unsafe { execution_engine.get_function("sum").ok() }*/
         //     self.symbols.borrow_mut().push_symbol(name, symbol_value).ok();
         // }
 
-        // // start to build basic blocks
-        // for id in ids[arg_types.len() + 2..].iter() {
-        //     self.dispatch_node(generator_context, id);
-        // }
+        // start to build basic blocks
+        for id in ids[arguments.len() + 2..].iter() {
+            self.dispatch_node(id);
+        }
+
+        self.module.print_to_stderr();
     }
 
     fn return_stmt_gen(&mut self, node_id: &NodeId) {
-        println!("return stmt gen {:?}", &node_id);
+        println!("return stmt gen {:?}", self.data(&node_id));
 
         let ids = self.children_ids(node_id);
 
@@ -257,10 +239,10 @@ unsafe { execution_engine.get_function("sum").ok() }*/
                     _ => unimplemented!()
                 }
             },
-            // &SyntaxType::Expr => {
-                // let r = self.expr_gen(&ids[0]);
-                // builder.build_ret(&r);
-            // }
+            &SyntaxType::Expr => {
+                let r = self.expr_gen(&ids[0]);
+                self.builder.build_return(Some(&r));
+            }
             _ => unimplemented!()
         }
     }
@@ -316,31 +298,41 @@ unsafe { execution_engine.get_function("sum").ok() }*/
         unimplemented!()
     }
 
-    // fn expr_gen(&self, node_id: &NodeId) -> Value {
-        // let childs = self.children_ids(node_id);
-        // assert!(childs.len() >= 3);
+    fn expr_gen(&self, node_id: &NodeId) -> BasicValueEnum {
+        println!("GEN {:?}", self.data(&node_id));
 
-        // let mut lhs = self.llvm_value(context, &childs[0]);
-        // let mut current_op = 1;
-        // loop {
-        //     let rhs = self.llvm_value(context, &childs[current_op + 1]);
+        let childs = self.children_ids(node_id);
+        assert!(childs.len() >= 3);
 
-        //     lhs = match *self.token(&childs[current_op]).unwrap() {
-        //         Token::Operator(Operators::Add) => context.builder.build_add(lhs, rhs, "add"),
-        //         Token::Operator(Operators::Mul) => context.builder.build_mul(lhs, rhs, "mul"),
-        //         Token::Operator(Operators::Minus) => context.builder.build_mul(lhs, rhs, "sub"),
-        //         Token::Operator(Operators::Division) => context.builder.build_mul(lhs, rhs, "div"),
-        //         _ => unreachable!(),
-        //     };
+        let mut lhs = self.llvm_basic_value(&childs[0]);
 
-        //     current_op += 2;
-        //     if current_op >= childs.len() { break; }
-        // }
+        let mut current_op = 1;
+        loop {
+            let rhs = self.llvm_basic_value(&childs[current_op + 1]);
 
-        // lhs
+            lhs = match *self.token(&childs[current_op]).unwrap() {
+                Token::Operator(Operators::Add) =>
+                    self.builder.build_int_add(lhs.as_int_value(), rhs.as_int_value(), "add").into(),
+                // Token::Operator(Operators::Mul) => self.builder.build_mul(lhs, rhs, "mul"),
+                // Token::Operator(Operators::Minus) => self.builder.build_mul(lhs, rhs, "sub"),
+                // Token::Operator(Operators::Division) => self.builder.build_mul(lhs, rhs, "div"),
+                _ => unreachable!(),
+            };
+
+            current_op += 2;
+            if current_op >= childs.len() { break; }
+        }
+
+        lhs
 
         // unimplemented!()
-    // }
+    }
+
+    fn llvm_basic_value(&self, node_id: &NodeId) -> BasicValueEnum {
+        println!("GEN BasicValue {:?}", self.data(&node_id));
+
+        self.context.i64_type().const_int(1, false).into()
+    }
 
     // fn llvm_value(&self, node_id: &NodeId) -> Value {
         // match self.data(node_id) {

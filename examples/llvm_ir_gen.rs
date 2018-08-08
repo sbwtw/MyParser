@@ -19,9 +19,9 @@ fn main() {
     Target::initialize_native(&InitializationConfig::default()).unwrap();
 
     let src = "
-int f()
+int f(int a, int b)
 {
-    return 1;
+    return a + b;
 }
 
     ";
