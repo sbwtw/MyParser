@@ -22,6 +22,9 @@ fn main() {
     let src = "
 int f(int a, int b)
 {
+    if (a > b)
+        return a;
+
     return a + b;
 }
 

@@ -6,18 +6,17 @@ use token::Token;
 use token::KeyWords;
 use token::Operators;
 use token::Numbers;
-use token::Type as ValueType;
 
 use id_tree::*;
+use inkwell::IntPredicate;
 use inkwell::support::LLVMString;
 use inkwell::OptimizationLevel;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine, Symbol};
 use inkwell::module::Module;
-use inkwell::targets::{InitializationConfig, Target};
-use inkwell::types::{AnyType, BasicTypeEnum, BasicType, IntType};
-use inkwell::values::{BasicValue, BasicValueEnum, IntValue};
+use inkwell::types::{AnyType, AnyTypeEnum, BasicTypeEnum, BasicType, IntType, FunctionType};
+use inkwell::values::{BasicValue, BasicValueEnum, AnyValueEnum, IntValue};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -76,7 +75,7 @@ pub struct LLVMIRGenerater<'t> {
     context: Context,
     module: Module,
     builder: Builder,
-    symbols: Rc<RefCell<SymbolManager<BasicValueEnum, String>>>,
+    symbols: Rc<RefCell<SymbolManager<AnyValueEnum, String>>>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -112,13 +111,12 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn dispatch_node(&mut self, id: &NodeId) {
-
-        println!("dispatch node {:?}", &id);
+        println!("DISPATCH {:?}", self.data(&id));
 
         match self.data(id) {
             &SyntaxType::FuncDefine => self.function_gen(id),
             &SyntaxType::ReturnStmt => self.return_stmt_gen(id),
-            // &SyntaxType::IfStmt => self.if_stmt_gen(id),
+            &SyntaxType::IfStmt => self.if_stmt_gen(id),
             // &SyntaxType::VariableDefine => self.variable_define(id),
             // &SyntaxType::AssignStmt => self.assign_stmt(id),
             _ => {},
@@ -146,7 +144,6 @@ impl<'t> LLVMIRGenerater<'t> {
 
         let ids = self.children_ids(node);
         let fn_name = self.ident_name(&ids[1]).unwrap();
-        let __scope_guard = self.scope_guard(&fn_name);
 
         let mut args_type = vec![];
         let mut args_name = vec![];
@@ -169,6 +166,9 @@ impl<'t> LLVMIRGenerater<'t> {
         let fn_type = self.context.i64_type().fn_type(&arguments[..], false);
         let function = self.module.add_function(&fn_name, &fn_type, None);
 
+        self.push_identifier(&fn_name, function.into());
+
+        let __scope_guard = self.scope_guard(&fn_name);
         let bb = self.context.append_basic_block(&function, &fn_name);
         self.builder.position_at_end(&bb);
 
@@ -176,7 +176,7 @@ impl<'t> LLVMIRGenerater<'t> {
         assert_eq!(param_count, args_name.len() as u32);
 
         for (idx, param) in function.params().enumerate() {
-            self.push_identifier(&args_name[idx], param);
+            self.push_identifier(&args_name[idx], param.into());
         }
 
         // argument types
@@ -250,8 +250,8 @@ impl<'t> LLVMIRGenerater<'t> {
                 }
             },
             &SyntaxType::Expr => {
-                let r = self.expr_gen(&ids[0]);
-                self.builder.build_return(Some(&r));
+                let r = self.expr_gen(&ids[0]).into_int_value();
+                self.builder.build_return(Some(&r as &BasicValue));
             }
             _ => unimplemented!()
         }
@@ -261,27 +261,29 @@ impl<'t> LLVMIRGenerater<'t> {
     // }
 
     fn if_stmt_gen(&mut self, node_id: &NodeId) {
-        // let childs = self.children_ids(node_id);
+        println!("GEN {:?}", self.data(&node_id));
 
-        // let lhs = self.llvm_value(context, &childs[0]);
-        // let rhs = self.llvm_value(context, &childs[2]);
+        let childs = self.children_ids(node_id);
 
-        // // binary op
-        // let if_result = match *self.token(&childs[1]).unwrap() {
-        //     Token::Operator(Operators::Equal) =>
-        //         context.builder.build_icmp(LLVMIntPredicate::LLVMIntEQ, lhs, rhs, "icmp_eq"),
-        //     Token::Operator(Operators::NotEqual) =>
-        //         context.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, lhs, rhs, "icmp_ne"),
-        //     Token::Operator(Operators::Greater) =>
-        //         context.builder.build_icmp(LLVMIntPredicate::LLVMIntSGT, lhs, rhs, "icmp_sgt"),
-        //     Token::Operator(Operators::GreaterEqual) =>
-        //         context.builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, lhs, rhs, "icmp_sge"),
-        //     Token::Operator(Operators::Less) =>
-        //         context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLT, lhs, rhs, "icmp_slt"),
-        //     Token::Operator(Operators::LessEqual) =>
-        //         context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLE, lhs, rhs, "icmp_sle"),
-        //     _ => unreachable!(),
-        // };
+        let lhs = self.llvm_value(&childs[0]);
+        let rhs = self.llvm_value(&childs[2]);
+
+        // binary op
+        let if_result = match *self.token(&childs[1]).unwrap() {
+            // Token::Operator(Operators::Equal) =>
+                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntEQ, lhs, rhs, "icmp_eq"),
+            // Token::Operator(Operators::NotEqual) =>
+                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, lhs, rhs, "icmp_ne"),
+            Token::Operator(Operators::Greater) =>
+                self.builder.build_int_compare(IntPredicate::SGT, lhs.as_int_value(), rhs.as_int_value(), "icmp_sgt"),
+            // Token::Operator(Operators::GreaterEqual) =>
+                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, lhs, rhs, "icmp_sge"),
+            // Token::Operator(Operators::Less) =>
+                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLT, lhs, rhs, "icmp_slt"),
+            // Token::Operator(Operators::LessEqual) =>
+                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLE, lhs, rhs, "icmp_sle"),
+            _ => unreachable!(),
+        };
 
         // let (tb, fb) = {
         //     let symbols = self.symbols.clone();
@@ -297,9 +299,9 @@ impl<'t> LLVMIRGenerater<'t> {
         // };
 
         // // move to true branch
-        // context.builder.position_at_end(tb);
+        // self.builder.position_at_end(tb);
         // if childs.len() > 3 {
-        //     self.return_stmt_gen(context, &childs[3]);
+        //     self.return_stmt_gen(&childs[3]);
         // }
 
         // // move to end
@@ -308,17 +310,17 @@ impl<'t> LLVMIRGenerater<'t> {
         unimplemented!()
     }
 
-    fn expr_gen(&self, node_id: &NodeId) -> BasicValueEnum {
+    fn expr_gen(&self, node_id: &NodeId) -> AnyValueEnum {
         println!("GEN {:?}", self.data(&node_id));
 
         let childs = self.children_ids(node_id);
         assert!(childs.len() >= 3);
 
-        let mut lhs = self.llvm_basic_value(&childs[0]);
+        let mut lhs = self.llvm_value(&childs[0]);
 
         let mut current_op = 1;
         loop {
-            let rhs = self.llvm_basic_value(&childs[current_op + 1]);
+            let rhs = self.llvm_value(&childs[current_op + 1]);
 
             lhs = match *self.token(&childs[current_op]).unwrap() {
                 Token::Operator(Operators::Add) =>
@@ -339,7 +341,7 @@ impl<'t> LLVMIRGenerater<'t> {
         // unimplemented!()
     }
 
-    fn llvm_basic_value(&self, node_id: &NodeId) -> BasicValueEnum {
+    fn llvm_value(&self, node_id: &NodeId) -> AnyValueEnum {
         println!("GEN BasicValue {:?}", self.data(&node_id));
 
         let ident = self.ident_name(node_id).expect("Ident Node Error");
@@ -406,7 +408,7 @@ impl<'t> LLVMIRGenerater<'t> {
         // unimplemented!()
     // }
 
-    fn push_identifier(&self, ident: &str, value: BasicValueEnum) {
+    fn push_identifier(&self, ident: &str, value: AnyValueEnum) {
         self.symbols.borrow_mut().push_symbol(ident, value).unwrap();
     }
 
@@ -431,7 +433,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     #[inline]
-    fn scope_guard<T: AsRef<str>>(&self, scope: T) -> ScopeGuard<BasicValueEnum, String> {
+    fn scope_guard<T: AsRef<str>>(&self, scope: T) -> ScopeGuard<AnyValueEnum, String> {
         ScopeGuard::new(self.symbols.clone(), scope.as_ref().to_owned())
     }
 }
