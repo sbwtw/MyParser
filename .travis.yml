@@ -2,7 +2,7 @@ sudo: true
 dist: trusty
 
 env:
-    - LLVM_SYS_50_STRICT_VERSIONING=1 LLVM_SYS_50_PREFIX=/usr/lib/llvm-5.0
+    - LLVM_SYS_60_STRICT_VERSIONING=1 LLVM_SYS_60_PREFIX=/usr/lib/llvm-6.0
 
 language: rust
 
@@ -15,11 +15,12 @@ cache:
 
 script:
     - cargo build
+    - cargo build --release
     - cargo test
 
 addons:
     apt:
         sources:
-            - llvm-toolchain-trusty-5.0
+            - llvm-toolchain-trusty-6.0
         packages:
-            - llvm-5.0-dev
+            - llvm-6.0-dev
