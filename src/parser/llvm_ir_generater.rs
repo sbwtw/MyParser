@@ -9,7 +9,7 @@ use token::Numbers;
 use token::Type as ValueType;
 
 use id_tree::*;
-use llvm_sys::*;
+use inkwell::support::LLVMString;
 use inkwell::OptimizationLevel;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
@@ -25,18 +25,19 @@ use std::cell::RefCell;
 ///
 /// # JIT Examples.
 /// ```
-/// extern crate llvm;
+/// extern crate inkwell;
 /// extern crate parser;
 ///
-/// use self::llvm::*;
+/// use self::inkwell::targets::{Target, InitializationConfig};
+/// use self::inkwell::execution_engine::Symbol;
 /// use parser::parser::*;
 /// use parser::parser::recursive_descent::*;
 /// use parser::parser::llvm_ir_generater::*;
 /// use parser::lexer::*;
 ///
-/// use std::mem;
-///
 /// # fn main () {
+///
+/// Target::initialize_native(&InitializationConfig::default()).unwrap();
 ///
 /// let src = "
 ///
@@ -55,20 +56,16 @@ use std::cell::RefCell;
 /// let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
 /// let module = generater.ir_gen();
 ///
-/// link_in_mcjit();
-/// initialize_native_target();
-/// initialize_native_asm_printer();
+/// let ee = generater.execution_engine().unwrap();
 ///
-/// let ee = ExecutionEngine::create_for_module(&module).unwrap();
-///
-/// let f: extern "C" fn(i64, i64) -> i64 = unsafe {
-///     mem::transmute(ee.get_function_address("f").unwrap())
+/// let f: Symbol<unsafe extern "C" fn(i64, i64) -> i64> = unsafe {
+///     ee.get_function("f").unwrap()
 /// };
 ///
-/// assert_eq!(5, f(2, 3));
-/// assert_eq!(6, f(6, 5));
-/// assert_eq!(7, f(3, 4));
-/// assert_eq!(9, f(4, 5));
+/// assert_eq!(5, unsafe { f(2, 3) });
+/// assert_eq!(6, unsafe { f(6, 5) });
+/// assert_eq!(7, unsafe { f(3, 4) });
+/// assert_eq!(9, unsafe { f(4, 5) });
 ///
 /// # }
 /// ```
@@ -96,6 +93,10 @@ impl<'t> LLVMIRGenerater<'t> {
             builder,
             symbols: Rc::new(RefCell::new(SymbolManager::new())),
         }
+    }
+
+    pub fn execution_engine(&self) -> Result<ExecutionEngine, LLVMString> {
+        self.module.create_jit_execution_engine(OptimizationLevel::None)
     }
 
     pub fn ir_gen(&mut self) -> Result<(), ()> {
@@ -322,8 +323,9 @@ impl<'t> LLVMIRGenerater<'t> {
             lhs = match *self.token(&childs[current_op]).unwrap() {
                 Token::Operator(Operators::Add) =>
                     self.builder.build_int_add(lhs.as_int_value(), rhs.as_int_value(), "add").into(),
-                // Token::Operator(Operators::Mul) => self.builder.build_mul(lhs, rhs, "mul"),
-                // Token::Operator(Operators::Minus) => self.builder.build_mul(lhs, rhs, "sub"),
+                Token::Operator(Operators::Mul) =>
+                    self.builder.build_int_mul(lhs.as_int_value(), rhs.as_int_value(), "mul").into(),
+                // Token::Operator(Operators::Minus) => self.builder.build_int_mul(lhs, rhs, "sub"),
                 // Token::Operator(Operators::Division) => self.builder.build_mul(lhs, rhs, "div"),
                 _ => unreachable!(),
             };

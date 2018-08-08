@@ -9,6 +9,7 @@ use parser::parser::recursive_descent::*;
 use parser::parser::llvm_ir_generater::*;
 
 use inkwell::targets::{Target, InitializationConfig};
+use inkwell::execution_engine::{ExecutionEngine, Symbol};
 
 use std::mem;
 
@@ -37,12 +38,8 @@ int f(int a, int b)
 
     println!();
 
-    // link_in_mcjit();
-    // initialize_native_target();
-    // initialize_native_asm_printer();
+    let ee = generater.execution_engine().unwrap();
 
-    // let ee = ExecutionEngine::create_for_module(&module).unwrap();
-
-    // let f: extern "C" fn(i64, i64) -> i64 = unsafe { mem::transmute(ee.get_function_address("f").unwrap()) };
-    // assert_eq!(f(3, 2), 5);
+    let f: Symbol<unsafe extern "C" fn(u64, u64) -> u64> = unsafe { ee.get_function("f").unwrap() };
+    assert_eq!(unsafe { f(3, 2) }, 5);
 }
