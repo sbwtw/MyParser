@@ -79,6 +79,7 @@ pub struct LLVMIRGenerater<'t> {
     context: Context,
     module: Module,
     builder: Builder,
+    symbols: Rc<RefCell<SymbolManager<BasicValueEnum, String>>>,
 }
 
 impl<'t> LLVMIRGenerater<'t> {
@@ -93,6 +94,7 @@ impl<'t> LLVMIRGenerater<'t> {
             context,
             module,
             builder,
+            symbols: Rc::new(RefCell::new(SymbolManager::new())),
         }
     }
 
@@ -143,29 +145,38 @@ impl<'t> LLVMIRGenerater<'t> {
 
         let ids = self.children_ids(node);
         let fn_name = self.ident_name(&ids[1]).unwrap();
+        let __scope_guard = self.scope_guard(&fn_name);
 
-        let mut arguments = vec![];
+        let mut args_type = vec![];
+        let mut args_name = vec![];
         for id in ids.iter().skip(2) {
             match self.data(id) {
                 &SyntaxType::FuncParam => {
                     let childs = self.children_ids(id);
                     let arg_type = self.llvm_basic_type(&childs[0]);
+                    let arg_name = self.ident_name(&childs[1]).unwrap();
 
-                    arguments.push(arg_type);
-                    // arg_names.push(childs[1].clone());
-                    // arg_types.push(llvm_type);
+                    args_type.push(arg_type);
+                    args_name.push(arg_name);
                 },
                 _ => break,
             };
         }
 
         // convert to trait objects.
-        let arguments: Vec<&BasicType> = arguments.iter().map(|x| x as &BasicType).collect();
+        let arguments: Vec<&BasicType> = args_type.iter().map(|x| x as &BasicType).collect();
         let fn_type = self.context.i64_type().fn_type(&arguments[..], false);
         let function = self.module.add_function(&fn_name, &fn_type, None);
 
         let bb = self.context.append_basic_block(&function, &fn_name);
         self.builder.position_at_end(&bb);
+
+        let param_count = function.count_params();
+        assert_eq!(param_count, args_name.len() as u32);
+
+        for (idx, param) in function.params().enumerate() {
+            self.push_identifier(&args_name[idx], param);
+        }
 
         // argument types
         // let mut arg_types: Vec<&Type> = vec![];
@@ -188,8 +199,6 @@ impl<'t> LLVMIRGenerater<'t> {
 
         // let bb = context.append_basic_block(&mut func, "");
         // generator_context.builder.position_at_end(bb);
-
-        // let __scope_guard = self.scope_guard(func);
 
         // let func_params: Vec<*mut LLVMValue> = arg_names.iter().enumerate().map(|(index, _)| {
         //     self.symbols.borrow().current_scope().unwrap().get_param(index as u32).unwrap()
@@ -331,7 +340,9 @@ impl<'t> LLVMIRGenerater<'t> {
     fn llvm_basic_value(&self, node_id: &NodeId) -> BasicValueEnum {
         println!("GEN BasicValue {:?}", self.data(&node_id));
 
-        self.context.i64_type().const_int(1, false).into()
+        let ident = self.ident_name(node_id).expect("Ident Node Error");
+
+        self.symbols.borrow().lookup(ident).expect("Symbol Not Found").clone()
     }
 
     // fn llvm_value(&self, node_id: &NodeId) -> Value {
@@ -393,6 +404,10 @@ impl<'t> LLVMIRGenerater<'t> {
         // unimplemented!()
     // }
 
+    fn push_identifier(&self, ident: &str, value: BasicValueEnum) {
+        self.symbols.borrow_mut().push_symbol(ident, value).unwrap();
+    }
+
     #[inline]
     fn ident_name(&self, node_id: &NodeId) -> Option<String> {
         self.data(node_id).symbol().map(|x| x.to_owned())
@@ -411,6 +426,11 @@ impl<'t> LLVMIRGenerater<'t> {
     #[inline]
     fn children_ids(&self, node_id: &NodeId) -> Vec<NodeId> {
         self.ast.children_ids(&node_id).unwrap().map(|x| x.clone()).collect()
+    }
+
+    #[inline]
+    fn scope_guard<T: AsRef<str>>(&self, scope: T) -> ScopeGuard<BasicValueEnum, String> {
+        ScopeGuard::new(self.symbols.clone(), scope.as_ref().to_owned())
     }
 }
 
