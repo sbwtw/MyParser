@@ -16,7 +16,8 @@ use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine, Symbol};
 use inkwell::module::Module;
 use inkwell::targets::{InitializationConfig, Target};
-use inkwell::types::{AnyType, BasicTypeEnum, BasicType};
+use inkwell::types::{AnyType, BasicTypeEnum, BasicType, IntType};
+use inkwell::values::BasicValue;
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -108,9 +109,12 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn dispatch_node(&mut self, id: &NodeId) {
+
+        println!("dispatch node {:?}", &id);
+
         match self.data(id) {
             &SyntaxType::FuncDefine => self.function_gen(id),
-            // &SyntaxType::ReturnStmt => self.return_stmt_gen(id),
+            &SyntaxType::ReturnStmt => self.return_stmt_gen(id),
             // &SyntaxType::IfStmt => self.if_stmt_gen(id),
             // &SyntaxType::VariableDefine => self.variable_define(id),
             // &SyntaxType::AssignStmt => self.assign_stmt(id),
@@ -138,11 +142,7 @@ impl<'t> LLVMIRGenerater<'t> {
     fn function_gen(&mut self, node: &NodeId) {
 
         let ids = self.children_ids(node);
-        let func_name = self.ident_name(&ids[1]).unwrap();
-    //     let func_type = FunctionType::new(Type::get::<()>(&self.context), &vec![]);
-    //     let builder = Builder::new(self.context);
-
-    //     let func = self.module.add_function(&func_name, func_type);
+        let fn_name = self.ident_name(&ids[1]).unwrap();
 
         let mut arguments = vec![];
         for id in ids.iter().skip(2) {
@@ -159,11 +159,33 @@ impl<'t> LLVMIRGenerater<'t> {
             };
         }
 
+        // convert to trait objects.
         let arguments: Vec<&BasicType> = arguments.iter().map(|x| x as &BasicType).collect();
         let fn_type = self.context.i64_type().fn_type(&arguments[..], false);
-        let func = self.module.add_function(&func_name, &fn_type, None);
+        let function = self.module.add_function(&fn_name, &fn_type, None);
+
+        let bb = self.context.append_basic_block(&function, &fn_name);
+        self.builder.position_at_end(&bb);
+
+        self.dispatch_node(&ids[2]);
 
         self.module.print_to_stderr();
+/*
+let function = module.add_function("sum", &fn_type, None);
+    let basic_block = context.append_basic_block(&function, "entry");
+
+    builder.position_at_end(&basic_block);
+
+    let x = function.get_nth_param(0)?.into_int_value();
+    let y = function.get_nth_param(1)?.into_int_value();
+    let z = function.get_nth_param(2)?.into_int_value();
+
+    let sum = builder.build_int_add(x, y, "sum");
+    let sum = builder.build_int_add(sum, z, "sum");
+
+    builder.build_return(Some(&sum));
+
+unsafe { execution_engine.get_function("sum").ok() }*/
 
         // argument types
         // let mut arg_types: Vec<&Type> = vec![];
@@ -208,38 +230,40 @@ impl<'t> LLVMIRGenerater<'t> {
         // }
     }
 
-    // fn return_stmt_gen(&mut self, node_id: &NodeId) {
-    //     let ids = self.children_ids(node_id);
-    //     let builder = Builder::new(self.context);
+    fn return_stmt_gen(&mut self, node_id: &NodeId) {
+        println!("return stmt gen {:?}", &node_id);
 
-    //     if ids.len() == 0 {
-    //         builder.build_ret_void();
-    //         return;
-    //     }
+        let ids = self.children_ids(node_id);
 
-    //     assert_eq!(ids.len(), 1);
+        if ids.len() == 0 {
+            self.builder.build_return(None);
+            return;
+        }
 
-    //     match self.data(&ids[0]) {
-    //         &SyntaxType::Terminal(ref token) => {
-    //             match **token {
-    //                 Token::Number(Numbers::SignedInt(v)) => {
-    //                     let ret_value = v.compile(&self.context);
-    //                     builder.build_ret(ret_value);
-    //                 },
-    //                 Token::Identifier(ref name, _) => {
-    //                     let value = self.ident_value(name);
-    //                     builder.build_ret(&value);
-    //                 },
-    //                 _ => unimplemented!()
-    //             }
-    //         },
-    //         &SyntaxType::Expr => {
-    //             let r = self.expr_gen(&ids[0]);
-    //             builder.build_ret(&r);
-    //         }
-    //         _ => unimplemented!()
-    //     }
-    // }
+        assert_eq!(ids.len(), 1);
+
+        match self.data(&ids[0]) {
+            &SyntaxType::Terminal(ref token) => {
+                match **token {
+                    Token::Number(Numbers::SignedInt(v)) => {
+                        let r_type = self.context.i64_type();
+                        let r_value = r_type.const_int(v as u64, false);
+                        self.builder.build_return(Some(&r_value as &BasicValue));
+                    },
+                    // Token::Identifier(ref name, _) => {
+                        // let value = self.ident_value(name);
+                        // builder.build_ret(&value);
+                    // },
+                    _ => unimplemented!()
+                }
+            },
+            // &SyntaxType::Expr => {
+                // let r = self.expr_gen(&ids[0]);
+                // builder.build_ret(&r);
+            // }
+            _ => unimplemented!()
+        }
+    }
 
     // fn func_call_gen(&mut self, context: &mut GeneraterContext, node_id: &NodeId) -> *mut LLVMValue {
     // }
