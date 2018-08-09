@@ -9,7 +9,7 @@ use std::fs::File;
 
 fn main() {
     let f = File::open("test/test.c").unwrap();
-    let mut parser = RecursiveDescentParser::new(Lexer::new(f));
+    let mut parser = RecursiveDescentParser::new(SimpleLexer::new(f));
 
     parser.run().ok();
     parser.dump();

@@ -12,7 +12,7 @@ fn main() {
     a = \"\\s\";
 }
 ";
-    let mut lexer = Lexer::new(s.as_bytes());
+    let mut lexer = SimpleLexer::new(s.as_bytes());
 
     println!("{}", s);
     while let Some(tok) = lexer.next() {

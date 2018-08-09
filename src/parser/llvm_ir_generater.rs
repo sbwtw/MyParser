@@ -49,7 +49,7 @@ use std::cell::RefCell;
 /// }
 /// ";
 ///
-/// let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
+/// let mut parser = RecursiveDescentParser::new(SimpleLexer::new(src.as_bytes()));
 /// parser.run().unwrap();
 ///
 /// let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
@@ -436,7 +436,7 @@ mod test {
 
     macro_rules! create_llvm_execution_engine {
         ($src: ident, $ee: ident) => {
-            let mut parser = RecursiveDescentParser::new(Lexer::new($src.as_bytes()));
+            let mut parser = RecursiveDescentParser::new(SimpleLexer::new($src.as_bytes()));
             parser.run().unwrap();
 
             Target::initialize_native(&InitializationConfig::default()).unwrap();

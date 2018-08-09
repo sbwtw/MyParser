@@ -18,7 +18,7 @@ int f(int a, int b)
 }
     ";
 
-    let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
+    let mut parser = RecursiveDescentParser::new(SimpleLexer::new(src.as_bytes()));
 
     println!("\n{}\n", src);
 

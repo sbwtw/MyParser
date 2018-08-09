@@ -7,7 +7,7 @@ use std::iter::{Iterator, Peekable};
 
 type LexerResult = Result<Token, LexerError>;
 
-pub struct Lexer<I: Read> {
+pub struct SimpleLexer<I: Read> {
     row: usize,
     column: usize,
     peeker: Peekable<Bytes<I>>,
@@ -20,8 +20,11 @@ enum LexerError {
     UnexpectedChar(char, Vec<char>),
 }
 
-impl<I: Read> Iterator for Lexer<I> {
-    type Item = Token;
+pub trait Lexer : Iterator<Item=Token> {
+}
+
+impl<I: Read> Iterator for SimpleLexer<I> {
+    type Item=Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.parse() {
@@ -45,9 +48,11 @@ impl<I: Read> Iterator for Lexer<I> {
     }
 }
 
-impl<I: Read> Lexer<I> {
-    pub fn new(r: I) -> Lexer<I> {
-        Lexer {
+impl<I: Read> Lexer for SimpleLexer<I> {}
+
+impl<I: Read> SimpleLexer<I> {
+    pub fn new(r: I) -> SimpleLexer<I> {
+        SimpleLexer {
             row: 0,
             column: 0,
             peeker: r.bytes().peekable(),
@@ -348,7 +353,7 @@ mod test {
     fn test_key_words() {
         let source = "if else";
 
-        let mut lexer = Lexer::new(source.as_bytes());
+        let mut lexer = SimpleLexer::new(source.as_bytes());
         assert_eq!(
             Iterator::next(&mut lexer).unwrap(),
             Token::KeyWord(KeyWords::If)
@@ -364,7 +369,7 @@ mod test {
     fn test_division() {
         let source = "2/3";
 
-        let mut lexer = Lexer::new(source.as_bytes());
+        let mut lexer = SimpleLexer::new(source.as_bytes());
         assert_eq!(
             Iterator::next(&mut lexer).unwrap(),
             Token::Number(Numbers::from_str("2"))
@@ -385,7 +390,7 @@ mod test {
         let source = "> >= < <= == !=";
         let s = source.clone();
 
-        let mut lexer = Lexer::new(s.as_bytes());
+        let mut lexer = SimpleLexer::new(s.as_bytes());
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::Greater));
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::GreaterEqual));
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Operator(Operators::Less));
@@ -400,7 +405,7 @@ mod test {
         let source = "/**\naa\rbb\ta*/";
         let s = source.clone();
 
-        let mut lexer = Lexer::new(s.as_bytes());
+        let mut lexer = SimpleLexer::new(s.as_bytes());
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment(source.to_owned()));
         assert_eq!(Iterator::next(&mut lexer), None);
     }
@@ -410,14 +415,14 @@ mod test {
         let src = r#""this is literal \"String\".""#;
         let dst = "\"this is literal \"String\".\"".to_owned();
 
-        let mut lexer = Lexer::new(src.as_bytes());
+        let mut lexer = SimpleLexer::new(src.as_bytes());
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
         assert_eq!(Iterator::next(&mut lexer), None);
 
         let src = r#""with escape \n character \\""#;
         let dst = "\"with escape \n character \\\"".to_owned();
 
-        let mut lexer = Lexer::new(src.as_bytes());
+        let mut lexer = SimpleLexer::new(src.as_bytes());
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::LiteralStr(dst));
         assert_eq!(Iterator::next(&mut lexer), None);
     }
@@ -433,7 +438,7 @@ mod test {
     };
     ";
 
-        let mut lexer = Lexer::new(src.as_bytes());
+        let mut lexer = SimpleLexer::new(src.as_bytes());
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::KeyWord(KeyWords::Struct));
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Bracket(Brackets::LeftCurlyBracket));
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Comment("/* field a */".to_owned()));
@@ -457,7 +462,7 @@ mod test {
         --i;
     ";
 
-        let mut lexer = Lexer::new(src.as_bytes());
+        let mut lexer = SimpleLexer::new(src.as_bytes());
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Identifier("point".to_owned(), Type::NoType));
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Arrow);
         assert_eq!(Iterator::next(&mut lexer).unwrap(), Token::Identifier("x".to_owned(), Type::NoType));
@@ -474,7 +479,7 @@ mod test {
     fn test_lexer_panic() {
         let src = "/*asd";
 
-        let lexer = Lexer::new(src.as_bytes());
+        let lexer = SimpleLexer::new(src.as_bytes());
         let _ = lexer.count();
     }
 }

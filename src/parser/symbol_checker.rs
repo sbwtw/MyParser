@@ -150,7 +150,7 @@ mod test {
 
     macro_rules! test_symbol_checker {
         ($code: ident, $($r: tt)+) => {
-            let mut parser = RecursiveDescentParser::new(Lexer::new($code.as_bytes()));
+            let mut parser = RecursiveDescentParser::new(SimpleLexer::new($code.as_bytes()));
             assert!(matches!(parser.run(), $($r)+));
         };
     }

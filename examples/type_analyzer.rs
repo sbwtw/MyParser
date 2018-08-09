@@ -13,7 +13,7 @@ fn main() {
     let src = "
 struct S { int a, b; char c; };
     ";
-    let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
+    let mut parser = RecursiveDescentParser::new(SimpleLexer::new(src.as_bytes()));
 
     println!("\n{}\n", src);
 

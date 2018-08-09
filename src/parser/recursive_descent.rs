@@ -40,7 +40,8 @@ pub struct RecursiveDescentParser {
 }
 
 impl RecursiveDescentParser {
-    pub fn new<I: io::Read>(lexer: Lexer<I>) -> RecursiveDescentParser {
+    pub fn new<T>(lexer: T) -> RecursiveDescentParser
+      where T: Lexer {
         let mut tree = SyntaxTree::new();
         let root_node = Node::new(SyntaxType::SyntaxTree);
         tree.insert(root_node, AsRoot).unwrap();
@@ -974,20 +975,21 @@ mod test {
     use id_tree::Tree;
     use id_tree::InsertBehavior::*;
 
+    use lexer::SimpleLexer;
     use parser::recursive_descent::*;
     use parser::syntax_node::SyntaxType::*;
 
     macro_rules! test_func {
         ($tests: tt, $func: ident) => {
             for test in $tests {
-                let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+                let mut parser = RecursiveDescentParser::new(SimpleLexer::new(test.as_bytes()));
                 let id = parser.root_id();
                 assert!(parser.$func(&id) && parser.lexer_end());
             }
         };
         ($tests: tt, $func: ident, $($r: tt)+) => {
             for test in $tests {
-                let mut parser = RecursiveDescentParser::new(Lexer::new(test.as_bytes()));
+                let mut parser = RecursiveDescentParser::new(SimpleLexer::new(test.as_bytes()));
                 let id = parser.root_id();
                 assert!(matches!(parser.$func(&id), $($r)+));
             }
@@ -996,7 +998,7 @@ mod test {
 
     macro_rules! test_tree {
         ($test: expr, $func: ident, $tree: ident, $dump: expr) => {
-            let mut parser = RecursiveDescentParser::new(Lexer::new($test.as_bytes()));
+            let mut parser = RecursiveDescentParser::new(SimpleLexer::new($test.as_bytes()));
             let id = parser.root_id();
 
             let tree_root_id = $tree.root_node_id().unwrap();

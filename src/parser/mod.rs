@@ -64,7 +64,7 @@ mod test {
     use std::fs::File;
     use parser::*;
     use parser::recursive_descent::*;
-    use lexer::Lexer;
+    use lexer::SimpleLexer;
 
     #[test]
     fn run_test_code_files() {
@@ -72,7 +72,7 @@ mod test {
             if let Ok(entry) = file {
                 if entry.metadata().unwrap().is_file() {
                     let mut f = File::open(entry.path()).unwrap();
-                    let mut parser = RecursiveDescentParser::new(Lexer::new(f));
+                    let mut parser = RecursiveDescentParser::new(SimpleLexer::new(f));
 
                     assert!(parser.run().is_ok());
 
