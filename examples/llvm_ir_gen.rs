@@ -23,6 +23,9 @@ int f(int a, int b)
     if (a > b)
         return b;
 
+    if (a <= 0)
+        return 0;
+
     return a + b;
 }
 

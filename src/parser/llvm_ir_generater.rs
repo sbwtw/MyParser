@@ -352,30 +352,24 @@ impl<'t> LLVMIRGenerater<'t> {
     fn llvm_value(&self, node_id: &NodeId) -> AnyValueEnum {
         println!("GEN BasicValue {:?}", self.data(&node_id));
 
-        let ident = self.ident_name(node_id).expect("Ident Node Error");
-
-        self.symbols.borrow().lookup(ident).expect("Symbol Not Found").clone()
+        match self.data(&node_id) {
+            &SyntaxType::Terminal(ref term) => {
+                match term.as_ref() {
+                    &Token::Identifier(ref name, _) =>
+                        match self.symbols.borrow().lookup(name) {
+                            Some(v) => v.clone(),
+                            _ => unreachable!(),
+                        },
+                    &Token::Number(Numbers::SignedInt(n)) => {
+                        self.context.i64_type().const_int(n as u64, false).as_any_value_enum()
+                    },
+                    _ => unreachable!(),
+                }
+            }
+            &SyntaxType::Expr => self.expr_gen(node_id),
+            _ => unreachable!(),
+        }
     }
-
-    // fn llvm_value(&self, node_id: &NodeId) -> Value {
-        // match self.data(node_id) {
-        //     &SyntaxType::Terminal(ref term) => {
-        //         match term.as_ref() {
-        //             &Token::Identifier(ref name, _) =>
-        //                 match self.symbols.borrow().lookup(name).unwrap().symbol {
-        //                     SymbolType::LLVMValue(v) => v,
-        //                     _ => unreachable!(),
-        //                 },
-        //             &Token::Number(Numbers::SignedInt(n)) => n.compile(self.module.get_context()),
-        //             _ => unreachable!(),
-        //         }
-        //     }
-        //     &SyntaxType::Expr => self.expr_gen(node_id),
-        //     _ => unreachable!(),
-        // }
-
-        // unimplemented!()
-    // }
 
     fn llvm_basic_type(&self, node_id: &NodeId) -> BasicTypeEnum {
         match *self.token(node_id).unwrap() {
@@ -467,8 +461,11 @@ mod test {
         let src = "
 int f(int a, int b)
 {
-    if (a >= b)
+    if (a >= 5)
         return a;
+
+    if (a < b)
+        return b;
 
     return a + b;
 }
@@ -477,10 +474,10 @@ int f(int a, int b)
         create_llvm_execution_engine!(src, ee);
         let f = func_addr_in_ee!(ee, "f", unsafe extern "C" fn(i64, i64) -> i64);
 
-        assert_eq!(5, unsafe { f(2, 3) });
+        assert_eq!(3, unsafe { f(2, 3) });
         assert_eq!(6, unsafe { f(6, 5) });
-        assert_eq!(7, unsafe { f(3, 4) });
-        assert_eq!(5, unsafe { f(5, 5) });
+        assert_eq!(7, unsafe { f(4, 3) });
+        assert_eq!(5, unsafe { f(5, 2) });
     }
 
 //     #[test]
