@@ -13,10 +13,10 @@ use inkwell::support::LLVMString;
 use inkwell::OptimizationLevel;
 use inkwell::builder::Builder;
 use inkwell::context::Context;
-use inkwell::execution_engine::{ExecutionEngine, Symbol};
+use inkwell::execution_engine::{ExecutionEngine};
 use inkwell::module::Module;
-use inkwell::types::{AnyType, AnyTypeEnum, BasicTypeEnum, BasicType, IntType, FunctionType};
-use inkwell::values::{BasicValue, BasicValueEnum, AnyValueEnum, FunctionValue};
+use inkwell::types::{BasicTypeEnum, BasicType};
+use inkwell::values::{BasicValue, AnyValue, AnyValueEnum, FunctionValue};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -279,19 +279,19 @@ impl<'t> LLVMIRGenerater<'t> {
 
         let childs = self.children_ids(node_id);
 
-        let lhs = self.llvm_value(&childs[0]);
-        let rhs = self.llvm_value(&childs[2]);
+        let lhs = self.llvm_value(&childs[0]).into_int_value().into();
+        let rhs = self.llvm_value(&childs[2]).into_int_value().into();
 
         // binary op
         let if_result = match *self.token(&childs[1]).unwrap() {
             Token::Operator(Operators::Equal) =>
-                self.builder.build_int_compare(IntPredicate::EQ, lhs.as_int_value(), rhs.as_int_value(), "icmp_eq"),
+                self.builder.build_int_compare(IntPredicate::EQ, lhs, rhs, "icmp_eq"),
             Token::Operator(Operators::NotEqual) =>
-                self.builder.build_int_compare(IntPredicate::NE, lhs.as_int_value(), rhs.as_int_value(), "icmp_ne"),
+                self.builder.build_int_compare(IntPredicate::NE, lhs, rhs, "icmp_ne"),
             Token::Operator(Operators::Greater) =>
-                self.builder.build_int_compare(IntPredicate::SGT, lhs.as_int_value(), rhs.as_int_value(), "icmp_sgt"),
+                self.builder.build_int_compare(IntPredicate::SGT, lhs, rhs, "icmp_sgt"),
             Token::Operator(Operators::GreaterEqual) =>
-                self.builder.build_int_compare(IntPredicate::SGE, lhs.as_int_value(), rhs.as_int_value(), "icmp_sge"),
+                self.builder.build_int_compare(IntPredicate::SGE, lhs, rhs, "icmp_sge"),
             // Token::Operator(Operators::Less) =>
                 // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLT, lhs, rhs, "icmp_slt"),
             // Token::Operator(Operators::LessEqual) =>
@@ -324,7 +324,7 @@ impl<'t> LLVMIRGenerater<'t> {
         let childs = self.children_ids(node_id);
         assert!(childs.len() >= 3);
 
-        let mut lhs = self.llvm_value(&childs[0]);
+        let mut lhs: AnyValueEnum = self.llvm_value(&childs[0]);
 
         let mut current_op = 1;
         loop {
@@ -332,9 +332,9 @@ impl<'t> LLVMIRGenerater<'t> {
 
             lhs = match *self.token(&childs[current_op]).unwrap() {
                 Token::Operator(Operators::Add) =>
-                    self.builder.build_int_add(lhs.as_int_value(), rhs.as_int_value(), "add").into(),
-                Token::Operator(Operators::Mul) =>
-                    self.builder.build_int_mul(lhs.as_int_value(), rhs.as_int_value(), "mul").into(),
+                    self.builder.build_int_add(lhs.into_int_value(), rhs.into_int_value(), "add").as_any_value_enum(),
+                // Token::Operator(Operators::Mul) =>
+                    // self.builder.build_int_mul(lhs, rhs, "mul"),
                 // Token::Operator(Operators::Minus) => self.builder.build_int_mul(lhs, rhs, "sub"),
                 // Token::Operator(Operators::Division) => self.builder.build_mul(lhs, rhs, "div"),
                 _ => unreachable!(),
@@ -436,8 +436,6 @@ mod test {
     use parser::recursive_descent::*;
     use lexer::*;
     use parser::llvm_ir_generater::*;
-
-    use std::mem;
 
     // macro_rules! create_llvm_execution_engine {
     //     ($src: ident, $ee: ident) => {
