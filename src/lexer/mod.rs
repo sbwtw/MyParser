@@ -1,6 +1,8 @@
 
 mod simple_lexer;
+mod gen_lexer;
 
+pub use self::gen_lexer::GenLexer;
 pub use self::simple_lexer::SimpleLexer;
 
 use token::Token;

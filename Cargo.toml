@@ -2,6 +2,7 @@
 name = "my_parser"
 version = "0.1.0"
 authors = ["石博文 <sbw@sbw.so>"]
+build = "src/build.rs"
 
 [lib]
 name = "parser"
