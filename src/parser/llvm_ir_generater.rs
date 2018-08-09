@@ -16,7 +16,7 @@ use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine, Symbol};
 use inkwell::module::Module;
 use inkwell::types::{AnyType, AnyTypeEnum, BasicTypeEnum, BasicType, IntType, FunctionType};
-use inkwell::values::{BasicValue, BasicValueEnum, AnyValueEnum, IntValue};
+use inkwell::values::{BasicValue, BasicValueEnum, AnyValueEnum, FunctionValue};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -42,7 +42,7 @@ use std::cell::RefCell;
 ///
 /// int f(int a, int b)
 /// {
-///     if (a >= 5)
+///     if (a >= b)
 ///         return a;
 ///
 ///     return a + b;
@@ -64,11 +64,25 @@ use std::cell::RefCell;
 /// assert_eq!(5, unsafe { f(2, 3) });
 /// assert_eq!(6, unsafe { f(6, 5) });
 /// assert_eq!(7, unsafe { f(3, 4) });
-/// assert_eq!(9, unsafe { f(4, 5) });
+/// assert_eq!(5, unsafe { f(5, 5) });
 ///
 /// # }
 /// ```
 ///
+
+impl SymbolManager<AnyValueEnum, String> {
+    fn current_function(&self) -> FunctionValue {
+        for table in self.symbols().iter().rev() {
+            for (_, value) in table {
+                if value.is_function_value() {
+                    return value.into_function_value();
+                }
+            }
+        }
+
+        unimplemented!()
+    }
+}
 
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
@@ -242,10 +256,10 @@ impl<'t> LLVMIRGenerater<'t> {
                         let r_value = r_type.const_int(v as u64, false);
                         self.builder.build_return(Some(&r_value as &BasicValue));
                     },
-                    // Token::Identifier(ref name, _) => {
-                        // let value = self.ident_value(name);
-                        // builder.build_ret(&value);
-                    // },
+                    Token::Identifier(ref name, _) => {
+                        let value = self.ident_value(name);
+                        self.builder.build_return(Some(value.as_int_value() as &BasicValue));
+                    },
                     _ => unimplemented!()
                 }
             },
@@ -270,14 +284,14 @@ impl<'t> LLVMIRGenerater<'t> {
 
         // binary op
         let if_result = match *self.token(&childs[1]).unwrap() {
-            // Token::Operator(Operators::Equal) =>
-                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntEQ, lhs, rhs, "icmp_eq"),
-            // Token::Operator(Operators::NotEqual) =>
-                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntNE, lhs, rhs, "icmp_ne"),
+            Token::Operator(Operators::Equal) =>
+                self.builder.build_int_compare(IntPredicate::EQ, lhs.as_int_value(), rhs.as_int_value(), "icmp_eq"),
+            Token::Operator(Operators::NotEqual) =>
+                self.builder.build_int_compare(IntPredicate::NE, lhs.as_int_value(), rhs.as_int_value(), "icmp_ne"),
             Token::Operator(Operators::Greater) =>
                 self.builder.build_int_compare(IntPredicate::SGT, lhs.as_int_value(), rhs.as_int_value(), "icmp_sgt"),
-            // Token::Operator(Operators::GreaterEqual) =>
-                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSGE, lhs, rhs, "icmp_sge"),
+            Token::Operator(Operators::GreaterEqual) =>
+                self.builder.build_int_compare(IntPredicate::SGE, lhs.as_int_value(), rhs.as_int_value(), "icmp_sge"),
             // Token::Operator(Operators::Less) =>
                 // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLT, lhs, rhs, "icmp_slt"),
             // Token::Operator(Operators::LessEqual) =>
@@ -285,29 +299,23 @@ impl<'t> LLVMIRGenerater<'t> {
             _ => unreachable!(),
         };
 
-        // let (tb, fb) = {
-        //     let symbols = self.symbols.clone();
-        //     let mut symbols = symbols.borrow_mut();
-        //     let mut scope = symbols.current_scope_mut();
-        //     let ref mut func = scope.as_mut().unwrap();
+        let (tb, fb) = {
+            let func = self.symbols.borrow().current_function();
+            let tb = self.context.append_basic_block(&func, "if");
+            let fb = self.context.append_basic_block(&func, "endif");
 
-        //     let tb = self.context.append_basic_block(func, "if");
-        //     let fb = self.context.append_basic_block(func, "endif");
-        //     context.builder.build_cond_br(if_result, tb, fb);
+            self.builder.build_conditional_branch(&if_result, &tb, &fb);
 
-        //     (tb, fb)
-        // };
+            (tb, fb)
+        };
 
-        // // move to true branch
-        // self.builder.position_at_end(tb);
-        // if childs.len() > 3 {
-        //     self.return_stmt_gen(&childs[3]);
-        // }
+        if childs.len() > 3 {
+            self.builder.position_at_end(&tb);
+            self.return_stmt_gen(&childs[3]);
+        }
 
-        // // move to end
-        // context.builder.position_at_end(fb);
-
-        unimplemented!()
+        // move to end
+        self.builder.position_at_end(&fb);
     }
 
     fn expr_gen(&self, node_id: &NodeId) -> AnyValueEnum {
@@ -376,26 +384,9 @@ impl<'t> LLVMIRGenerater<'t> {
         }
     }
 
-    // fn ident_value(&self, name: &str) -> Value {
-
-        // self.symbols.borrow().lookup(name).map(|symbol_value| {
-        //     match symbol_value.value {
-        //         ValueType::Ptr(_) =>
-        //             match symbol_value.symbol {
-        //                 SymbolType::LLVMValue(value) =>
-        //                     self.dereference_ptr(context, value, &symbol_value.value),
-        //                 _ => unreachable!(),
-        //             },
-        //         _ =>
-        //             match symbol_value.symbol {
-        //                 SymbolType::LLVMValue(value) => value,
-        //                 _ => unreachable!(),
-        //             },
-        //     }
-        // }).unwrap()
-
-        // unimplemented!()
-    // }
+    fn ident_value(&self, name: &str) -> AnyValueEnum {
+        self.symbols.borrow().lookup(name).unwrap().clone()
+    }
 
     // fn dereference_ptr(&self, value: *mut LLVMValue, type_: &ValueType) -> Value {
         // match type_ {

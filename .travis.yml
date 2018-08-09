@@ -2,7 +2,7 @@ sudo: true
 dist: trusty
 
 env:
-    - LLVM_SYS_60_STRICT_VERSIONING=1 LLVM_SYS_60_PREFIX=/usr/lib/llvm-6.0
+    - LLVM_SYS_60_STRICT_VERSIONING=1 LLVM_SYS_60_FFI_WORKAROUND=1 LLVM_SYS_60_PREFIX=/usr/lib/llvm-6.0
 
 language: rust
 
@@ -23,4 +23,4 @@ addons:
         sources:
             - llvm-toolchain-trusty-6.0
         packages:
-            - llvm-6.0-dev
+            - llvm-6.0-dev libstdc++6

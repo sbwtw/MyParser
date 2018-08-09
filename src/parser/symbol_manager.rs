@@ -36,6 +36,10 @@ impl<V, S> SymbolManager<V, S> {
         }
     }
 
+    pub fn symbols(&self) -> &Vec<SymbolTable<V>> {
+        &self.symbols
+    }
+
     pub fn scope_level(&self) -> usize {
         self.symbols.len()
     }

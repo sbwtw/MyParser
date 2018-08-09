@@ -15,51 +15,50 @@
 - [ ] 基于`AST`的代码优化
 
 ## Examples
-### JIT 即时编译示例
+
+### JIT Examples.
+
 ```rust
-extern crate llvm;
+extern crate inkwell;
 extern crate parser;
 
-use self::llvm::*;
+use self::inkwell::targets::{Target, InitializationConfig};
+use self::inkwell::execution_engine::Symbol;
 use parser::parser::*;
 use parser::parser::recursive_descent::*;
 use parser::parser::llvm_ir_generater::*;
 use parser::lexer::*;
 
-use std::mem;
-
 fn main () {
+    Target::initialize_native(&InitializationConfig::default()).unwrap();
+
     let src = "
+
     int f(int a, int b)
     {
-        if (a >= 5)
+        if (a >= b)
             return a;
 
         return a + b;
-    }";
+    }
+    ";
 
     let mut parser = RecursiveDescentParser::new(Lexer::new(src.as_bytes()));
     parser.run().unwrap();
 
     let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
-    generater.ir_gen();
+    let module = generater.ir_gen();
 
-    link_in_mcjit();
-    initialize_native_target();
-    initialize_native_asm_printer();
+    let ee = generater.execution_engine().unwrap();
 
-    let module = generater.module();
-    let ee = ExecutionEngine::create_for_module(&module).unwrap();
-
-    let f: extern "C" fn(i64, i64) -> i64 = unsafe {
-        mem::transmute(ee.get_function_address("f").unwrap())
+    let f: Symbol<unsafe extern "C" fn(i64, i64) -> i64> = unsafe {
+        ee.get_function("f").unwrap()
     };
 
-    assert_eq!(5, f(2, 3));
-    assert_eq!(6, f(6, 5));
-    assert_eq!(7, f(3, 4));
-    assert_eq!(9, f(4, 5));
-
+    assert_eq!(5, unsafe { f(2, 3) });
+    assert_eq!(6, unsafe { f(6, 5) });
+    assert_eq!(7, unsafe { f(3, 4) });
+    assert_eq!(5, unsafe { f(5, 5) });
 }
 ```
 

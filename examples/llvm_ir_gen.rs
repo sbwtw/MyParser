@@ -23,7 +23,7 @@ fn main() {
 int f(int a, int b)
 {
     if (a > b)
-        return a;
+        return b;
 
     return a + b;
 }
@@ -44,5 +44,5 @@ int f(int a, int b)
     let ee = generater.execution_engine().unwrap();
 
     let f: Symbol<unsafe extern "C" fn(u64, u64) -> u64> = unsafe { ee.get_function("f").unwrap() };
-    assert_eq!(unsafe { f(3, 2) }, 5);
+    assert_eq!(unsafe { f(2, 3) }, 5);
 }
