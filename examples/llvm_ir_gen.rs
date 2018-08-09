@@ -40,8 +40,6 @@ int f(int a, int b)
     let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
     generater.ir_gen().ok();
 
-    println!();
-
     let ee = generater.execution_engine().unwrap();
 
     let f: Symbol<unsafe extern "C" fn(u64, u64) -> u64> = unsafe { ee.get_function("f").unwrap() };

@@ -125,7 +125,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn dispatch_node(&mut self, id: &NodeId) {
-        println!("DISPATCH {:?}", self.data(&id));
+        info!("DISPATCH {:?}", self.data(&id));
 
         match self.data(id) {
             &SyntaxType::FuncDefine => self.function_gen(id),
@@ -237,7 +237,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn return_stmt_gen(&mut self, node_id: &NodeId) {
-        println!("return stmt gen {:?}", self.data(&node_id));
+        info!("GEN {:?}", self.data(&node_id));
 
         let ids = self.children_ids(node_id);
 
@@ -275,7 +275,7 @@ impl<'t> LLVMIRGenerater<'t> {
     // }
 
     fn if_stmt_gen(&mut self, node_id: &NodeId) {
-        println!("GEN {:?}", self.data(&node_id));
+        info!("GEN {:?}", self.data(&node_id));
 
         let childs = self.children_ids(node_id);
 
@@ -319,7 +319,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn expr_gen(&self, node_id: &NodeId) -> AnyValueEnum {
-        println!("GEN {:?}", self.data(&node_id));
+        info!("GEN {:?}", self.data(&node_id));
 
         let childs = self.children_ids(node_id);
         assert!(childs.len() >= 3);
@@ -350,7 +350,7 @@ impl<'t> LLVMIRGenerater<'t> {
     }
 
     fn llvm_value(&self, node_id: &NodeId) -> AnyValueEnum {
-        println!("GEN BasicValue {:?}", self.data(&node_id));
+        info!("GEN {:?}", self.data(&node_id));
 
         match self.data(&node_id) {
             &SyntaxType::Terminal(ref term) => {
