@@ -292,10 +292,10 @@ impl<'t> LLVMIRGenerater<'t> {
                 self.builder.build_int_compare(IntPredicate::SGT, lhs, rhs, "icmp_sgt"),
             Token::Operator(Operators::GreaterEqual) =>
                 self.builder.build_int_compare(IntPredicate::SGE, lhs, rhs, "icmp_sge"),
-            // Token::Operator(Operators::Less) =>
-                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLT, lhs, rhs, "icmp_slt"),
-            // Token::Operator(Operators::LessEqual) =>
-                // context.builder.build_icmp(LLVMIntPredicate::LLVMIntSLE, lhs, rhs, "icmp_sle"),
+            Token::Operator(Operators::Less) =>
+                self.builder.build_int_compare(IntPredicate::SLT, lhs, rhs, "icmp_slt"),
+            Token::Operator(Operators::LessEqual) =>
+                self.builder.build_int_compare(IntPredicate::SLE, lhs, rhs, "icmp_sle"),
             _ => unreachable!(),
         };
 
@@ -432,57 +432,56 @@ impl<'t> LLVMIRGenerater<'t> {
 #[cfg(test)]
 mod test {
 
+    use lexer::*;
     use parser::*;
     use parser::recursive_descent::*;
-    use lexer::*;
     use parser::llvm_ir_generater::*;
 
-    // macro_rules! create_llvm_execution_engine {
-    //     ($src: ident, $ee: ident) => {
-    //         let mut parser = RecursiveDescentParser::new(Lexer::new($src.as_bytes()));
-    //         parser.run().unwrap();
+    use inkwell::targets::{Target, InitializationConfig};
+    use inkwell::execution_engine::Symbol;
 
-    //         let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
-    //         let module = generater.ir_gen();
+    macro_rules! create_llvm_execution_engine {
+        ($src: ident, $ee: ident) => {
+            let mut parser = RecursiveDescentParser::new(Lexer::new($src.as_bytes()));
+            parser.run().unwrap();
 
-    //         link_in_mcjit();
-    //         initialize_native_target();
-    //         initialize_native_asm_printer();
+            Target::initialize_native(&InitializationConfig::default()).unwrap();
 
-    //         let $ee = ExecutionEngine::create_for_module(&module).unwrap();
-    //     };
-    // }
+            let mut generater = LLVMIRGenerater::new(parser.syntax_tree());
+            generater.ir_gen().ok();
 
-    macro_rules! func_addr_in_ee {
-        ($ee: ident, $name: expr, $type: ty) => {
-            unsafe {
-                let f: $type = mem::transmute($ee.get_function_address($name).unwrap());
-                f
-            }
-        }
+            let $ee = generater.execution_engine().unwrap();
+        };
     }
 
-//     #[test]
-//     fn test_jit_expr()
-//     {
-//         let src = "
-// int f(int a, int b)
-// {
-//     if (a >= 5)
-//         return a;
+    macro_rules! func_addr_in_ee {
+        ($ee: ident, $name: expr, $type: ty) => {{
+            let f: Symbol<$type> = unsafe { $ee.get_function($name).unwrap() };
+            f
+        }}
+    }
 
-//     return a + b;
-// }
-//         ";
+    #[test]
+    fn test_jit_expr()
+    {
+        let src = "
+int f(int a, int b)
+{
+    if (a >= b)
+        return a;
 
-//         create_llvm_execution_engine!(src, ee);
-//         let f = func_addr_in_ee!(ee, "f", extern "C" fn(i64, i64) -> i64);
+    return a + b;
+}
+        ";
 
-//         assert_eq!(5, f(2, 3));
-//         assert_eq!(6, f(6, 5));
-//         assert_eq!(7, f(3, 4));
-//         assert_eq!(9, f(4, 5));
-//     }
+        create_llvm_execution_engine!(src, ee);
+        let f = func_addr_in_ee!(ee, "f", unsafe extern "C" fn(i64, i64) -> i64);
+
+        assert_eq!(5, unsafe { f(2, 3) });
+        assert_eq!(6, unsafe { f(6, 5) });
+        assert_eq!(7, unsafe { f(3, 4) });
+        assert_eq!(5, unsafe { f(5, 5) });
+    }
 
 //     #[test]
 //     fn test_local_variable()

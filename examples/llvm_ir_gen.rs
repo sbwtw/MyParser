@@ -9,9 +9,7 @@ use parser::parser::recursive_descent::*;
 use parser::parser::llvm_ir_generater::*;
 
 use inkwell::targets::{Target, InitializationConfig};
-use inkwell::execution_engine::{ExecutionEngine, Symbol};
-
-use std::mem;
+use inkwell::execution_engine::Symbol;
 
 fn main() {
 
