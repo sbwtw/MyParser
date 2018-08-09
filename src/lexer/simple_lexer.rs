@@ -1,26 +1,15 @@
 
 
 use token::*;
+use lexer::*;
 
 use std::io::{Read, Bytes};
 use std::iter::{Iterator, Peekable};
-
-type LexerResult = Result<Token, LexerError>;
 
 pub struct SimpleLexer<I: Read> {
     row: usize,
     column: usize,
     peeker: Peekable<Bytes<I>>,
-}
-
-#[derive(Debug)]
-enum LexerError {
-    Success,
-    UnexpectEnd,
-    UnexpectedChar(char, Vec<char>),
-}
-
-pub trait Lexer : Iterator<Item=Token> {
 }
 
 impl<I: Read> Iterator for SimpleLexer<I> {
@@ -348,6 +337,7 @@ impl<I: Read> SimpleLexer<I> {
 mod test {
 
     use lexer::*;
+    use token::*;
 
     #[test]
     fn test_key_words() {
