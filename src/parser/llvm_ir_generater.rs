@@ -16,7 +16,7 @@ use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine};
 use inkwell::module::Module;
 use inkwell::types::{BasicTypeEnum, BasicType};
-use inkwell::values::{BasicValue, AnyValue, AnyValueEnum, FunctionValue};
+use inkwell::values::{BasicValue, BasicValueEnum, AnyValue, AnyValueEnum, FunctionValue};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -324,15 +324,15 @@ impl<'t> LLVMIRGenerater<'t> {
         let childs = self.children_ids(node_id);
         assert!(childs.len() >= 3);
 
-        let mut lhs: AnyValueEnum = self.llvm_value(&childs[0]);
+        let mut lhs = self.llvm_value(&childs[0]).into_int_value();
 
         let mut current_op = 1;
         loop {
-            let rhs = self.llvm_value(&childs[current_op + 1]);
+            let rhs = self.llvm_value(&childs[current_op + 1]).into_int_value();
 
             lhs = match *self.token(&childs[current_op]).unwrap() {
                 Token::Operator(Operators::Add) =>
-                    self.builder.build_int_add(lhs.into_int_value(), rhs.into_int_value(), "add").as_any_value_enum(),
+                    self.builder.build_int_add(lhs, rhs, "add"),
                 // Token::Operator(Operators::Mul) =>
                     // self.builder.build_int_mul(lhs, rhs, "mul"),
                 // Token::Operator(Operators::Minus) => self.builder.build_int_mul(lhs, rhs, "sub"),
@@ -344,7 +344,7 @@ impl<'t> LLVMIRGenerater<'t> {
             if current_op >= childs.len() { break; }
         }
 
-        lhs
+        lhs.as_any_value_enum()
 
         // unimplemented!()
     }
@@ -382,16 +382,14 @@ impl<'t> LLVMIRGenerater<'t> {
         self.symbols.borrow().lookup(name).unwrap().clone()
     }
 
-    // fn dereference_ptr(&self, value: *mut LLVMValue, type_: &ValueType) -> Value {
-        // match type_ {
-        //     &ValueType::Ptr(ref ptr_type) => {
-        //         let deref = context.builder.build_load(value, "deref");
-        //         self.dereference_ptr(context, deref, ptr_type)
-        //     },
-        //     _ => value,
-        // }
-        // unimplemented!()
-    // }
+    fn dereference_ptr(&self, value: BasicValueEnum) -> BasicValueEnum {
+        match value {
+            BasicValueEnum::PointerValue(ptr) => {
+                self.dereference_ptr(self.builder.build_load(&ptr, "load"))
+            },
+            _ => value,
+        }
+    }
 
     fn push_identifier(&self, ident: &str, value: AnyValueEnum) {
         self.symbols.borrow_mut().push_symbol(ident, value).unwrap();
