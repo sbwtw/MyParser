@@ -20,13 +20,24 @@ fn main() {
     let src = "
 int f(int a, int b)
 {
-    if (a > b)
-        return b;
+    int c, d;
 
-    if (a <= 0)
-        return 0;
+    c = 5;
+    d = 4;
 
-    return a + b;
+    // if (a >= b)
+        // c = a;
+
+    // if (a <= b)
+        // d = a;
+
+    // if (a > b)
+    //     return b;
+
+    // if (a <= 0)
+    //     return 0;
+
+    return c + d;
 }
 
     ";

@@ -16,7 +16,7 @@ use inkwell::context::Context;
 use inkwell::execution_engine::{ExecutionEngine};
 use inkwell::module::Module;
 use inkwell::types::{BasicTypeEnum, BasicType};
-use inkwell::values::{BasicValue, BasicValueEnum, AnyValue, AnyValueEnum, FunctionValue};
+use inkwell::values::{BasicValue, BasicValueEnum, AnyValue, AnyValueEnum, FunctionValue, PointerValue};
 
 use std::rc::Rc;
 use std::cell::RefCell;
@@ -84,6 +84,18 @@ impl SymbolManager<AnyValueEnum, String> {
     }
 }
 
+fn any_value_into_basic_value(any_value: AnyValueEnum) -> Option<BasicValueEnum> {
+    match any_value {
+        AnyValueEnum::ArrayValue(v) => Some(v.into()),
+        AnyValueEnum::IntValue(v) => Some(v.into()),
+        AnyValueEnum::FloatValue(v) => Some(v.into()),
+        AnyValueEnum::PointerValue(v) => Some(v.into()),
+        AnyValueEnum::StructValue(v) => Some(v.into()),
+        AnyValueEnum::VectorValue(v) => Some(v.into()),
+        _ => None,
+    }
+}
+
 pub struct LLVMIRGenerater<'t> {
     ast: &'t SyntaxTree,
     context: Context,
@@ -131,28 +143,33 @@ impl<'t> LLVMIRGenerater<'t> {
             &SyntaxType::FuncDefine => self.function_gen(id),
             &SyntaxType::ReturnStmt => self.return_stmt_gen(id),
             &SyntaxType::IfStmt => self.if_stmt_gen(id),
-            // &SyntaxType::VariableDefine => self.variable_define(id),
-            // &SyntaxType::AssignStmt => self.assign_stmt(id),
-            _ => {},
+            &SyntaxType::VariableDefine => self.variable_define(id),
+            &SyntaxType::AssignStmt => self.assign_stmt(id),
+            _ => unimplemented!(),
         }
     }
 
-    // fn assign_stmt(&mut self, id: &NodeId) {
-    //     let ids = self.children_ids(id);
-    //     let ptr = self.llvm_value(&ids[0]);
-    //     let val = self.llvm_value(&ids[1]);
-    //     let builder = Builder::new(self.context);
+    fn assign_stmt(&mut self, id: &NodeId) {
+        let ids = self.children_ids(id);
+        let ptr = self.llvm_value(&ids[0]);
+        let val = self.llvm_value(&ids[1]);
 
-    //     builder.build_store(&val, &ptr);
-    // }
+        self.builder.build_store(&ptr.into_pointer_value(), &any_value_into_basic_value(val).unwrap());
+    }
 
-    // fn variable_define(&mut self, id: &NodeId) {
-    //     let ids = self.children_ids(id);
-    //     let var_type = Type::get::<i64>(self.context);
-    //     let builder = Builder::new(self.context);
+    fn variable_define(&mut self, id: &NodeId) {
 
-    //     builder.build_alloca(var_type);
-    // }
+        let ids = self.children_ids(id);
+        let var_type = self.llvm_basic_type(&ids[0]);
+
+        for var in ids.iter().skip(1) {
+            let name = &self.ident_name(var).unwrap();
+            let ptr = self.builder.build_alloca(var_type, name);
+
+            // store symbol
+            self.push_identifier(name, ptr.into());
+        }
+    }
 
     fn function_gen(&mut self, node: &NodeId) {
 
@@ -264,7 +281,7 @@ impl<'t> LLVMIRGenerater<'t> {
                 }
             },
             &SyntaxType::Expr => {
-                let r = self.expr_gen(&ids[0]).into_int_value();
+                let r = any_value_into_basic_value(self.expr_gen(&ids[0])).unwrap();
                 self.builder.build_return(Some(&r as &BasicValue));
             }
             _ => unimplemented!()
@@ -279,7 +296,13 @@ impl<'t> LLVMIRGenerater<'t> {
 
         let childs = self.children_ids(node_id);
 
-        let lhs = self.llvm_value(&childs[0]).into_int_value().into();
+        let lhs = match self.llvm_value(&childs[0]) {
+            AnyValueEnum::PointerValue(ptr) => self.dereference_ptr(ptr),
+            value @ _ => any_value_into_basic_value(value).unwrap(),
+        };
+        println!("aaa");
+        let lhs = lhs.into_int_value().into();
+        println!("bbb");
         let rhs = self.llvm_value(&childs[2]).into_int_value().into();
 
         // binary op
@@ -324,11 +347,17 @@ impl<'t> LLVMIRGenerater<'t> {
         let childs = self.children_ids(node_id);
         assert!(childs.len() >= 3);
 
-        let mut lhs = self.llvm_value(&childs[0]).into_int_value();
+        let mut lhs = match self.llvm_value(&childs[0]) {
+            AnyValueEnum::PointerValue(ptr) => self.dereference_ptr(ptr).into_int_value(),
+            value @ _ =>  value.into_int_value(),
+        };
 
         let mut current_op = 1;
         loop {
-            let rhs = self.llvm_value(&childs[current_op + 1]).into_int_value();
+            let rhs = match self.llvm_value(&childs[current_op + 1]) {
+                AnyValueEnum::PointerValue(ptr) => self.dereference_ptr(ptr).into_int_value(),
+                value @ _ =>  value.into_int_value(),
+            };
 
             lhs = match *self.token(&childs[current_op]).unwrap() {
                 Token::Operator(Operators::Add) =>
@@ -382,13 +411,17 @@ impl<'t> LLVMIRGenerater<'t> {
         self.symbols.borrow().lookup(name).unwrap().clone()
     }
 
-    fn dereference_ptr(&self, value: BasicValueEnum) -> BasicValueEnum {
+    fn dereference_basic(&self, value: BasicValueEnum) -> BasicValueEnum {
         match value {
             BasicValueEnum::PointerValue(ptr) => {
-                self.dereference_ptr(self.builder.build_load(&ptr, "load"))
+                self.dereference_ptr(ptr)
             },
             _ => value,
         }
+    }
+
+    fn dereference_ptr(&self, value: PointerValue) -> BasicValueEnum {
+        self.dereference_basic(self.builder.build_load(&value, "load"))
     }
 
     fn push_identifier(&self, ident: &str, value: AnyValueEnum) {
