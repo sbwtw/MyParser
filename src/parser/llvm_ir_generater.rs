@@ -511,6 +511,27 @@ int f(int a, int b)
         assert_eq!(5, unsafe { f(5, 2) });
     }
 
+    #[test]
+    fn test_stack_var()
+    {
+        let src = "
+int f()
+{
+    int a, b;
+
+    a = 4;
+    b = 5;
+
+    return a + b;
+}
+        ";
+
+        create_llvm_execution_engine!(src, ee);
+        let f = func_addr_in_ee!(ee, "f", unsafe extern "C" fn() -> i64);
+
+        assert_eq!(9, unsafe { f() });
+    }
+
 //     #[test]
 //     fn test_local_variable()
 //     {

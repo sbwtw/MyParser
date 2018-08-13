@@ -10,7 +10,6 @@ use id_tree::*;
 use id_tree::InsertBehavior::*;
 use id_tree::RemoveBehavior::*;
 
-use std::io;
 use std::rc::Rc;
 
 type TokenResult = Option<Rc<Token>>;
