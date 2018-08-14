@@ -120,6 +120,10 @@ impl<'t> LLVMIRGenerater<'t> {
         }
     }
 
+    pub fn dump(&self) {
+        self.module.print_to_stderr();
+    }
+
     pub fn execution_engine(&self) -> Result<ExecutionEngine, LLVMString> {
         self.module.create_jit_execution_engine(OptimizationLevel::None)
     }
@@ -250,7 +254,7 @@ impl<'t> LLVMIRGenerater<'t> {
             self.dispatch_node(id);
         }
 
-        self.module.print_to_stderr();
+        // self.module.print_to_stderr();
     }
 
     fn return_stmt_gen(&mut self, node_id: &NodeId) {

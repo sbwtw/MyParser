@@ -47,7 +47,8 @@ impl<'t> SymbolChecker<'t> {
                 &SyntaxType::StructDefine => self.check_struct(id)?,
                 &SyntaxType::FuncDefine |
                 &SyntaxType::FuncDeclare => self.check_func(id)?,
-                t => println!("unhandled: {:?}", t),
+                &SyntaxType::VariableDefine => self.check_variable_define(id)?,
+                t => println!("UNHANDLED check_subtree: {:?}", t),
             }
         }
 

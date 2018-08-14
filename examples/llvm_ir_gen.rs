@@ -18,26 +18,15 @@ fn main() {
     Target::initialize_native(&InitializationConfig::default()).unwrap();
 
     let src = "
+
+int g_a, g_b;
+
 int f(int a, int b)
 {
-    int c, d;
+    g_a = a;
+    g_b = b;
 
-    c = 5;
-    d = 4;
-
-    // if (a >= b)
-        // c = a;
-
-    // if (a <= b)
-        // d = a;
-
-    // if (a > b)
-    //     return b;
-
-    // if (a <= 0)
-    //     return 0;
-
-    return c + d;
+    return g_a + g_b;
 }
 
     ";

@@ -55,6 +55,12 @@ impl RecursiveDescentParser {
         }
     }
 
+    pub fn dump_lexer(&self) {
+        for token in &self.tokens {
+            println!("{:?}", *token);
+        }
+    }
+
     pub fn dump(&self) {
         let ref id = self.root_id();
         dump_tree(&self.tree, id, 0);
@@ -230,6 +236,10 @@ impl RecursiveDescentParser {
 
     fn match_variable_define_stmt(&mut self, root: &NodeId) -> bool {
         self.match_variable_define(root)
+    }
+
+    fn match_global_variable_define(&mut self, root: &NodeId) -> bool {
+        return self.match_variable_define(root) && self.term(Token::Semicolon);
     }
 
     // variable_define = type variable_list
@@ -958,6 +968,7 @@ impl Parser for RecursiveDescentParser {
             self.match_struct_define(id);
             self.match_function_define(id);
             self.match_function_declare(id);
+            self.match_global_variable_define(id);
         }
 
         SymbolChecker::new(&mut self.tree).check()
@@ -1189,5 +1200,15 @@ mod test {
                         //  ";",
                          "a = 2;"];
         test_func!(tests, match_stmt_list);
+    }
+
+    #[test]
+    fn test_global_variable() {
+        let src = "int a; void f(){}";
+
+        let mut parser = RecursiveDescentParser::new(SimpleLexer::new(src.as_bytes()));
+        // parser.dump_lexer();
+        parser.run().unwrap();
+        parser.dump();
     }
 }
