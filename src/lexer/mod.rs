@@ -1,6 +1,7 @@
 
 mod simple_lexer;
 mod gen_lexer;
+mod rule_parser;
 
 pub use self::gen_lexer::GenLexer;
 pub use self::simple_lexer::SimpleLexer;
