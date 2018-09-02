@@ -8,6 +8,7 @@ use std::string::ToString;
 enum RegexUnit {
     Character(char),
     CharacterRange(char, char),
+    Characters(Vec<RegexUnit>),
     Items(Vec<RegexItem>),
 }
 
@@ -33,12 +34,49 @@ impl<'s> From<&'s str> for RegexItem {
     }
 }
 
+impl ToString for RegexUnit {
+    fn to_string(&self) -> String {
+        let mut r = String::new();
+
+        match self {
+            RegexUnit::Character(c) => r.push(*c),
+            RegexUnit::CharacterRange(s, e) => {
+                r.push(*s);
+                r.push('-');
+                r.push(*e);
+            },
+            RegexUnit::Characters(list) => {
+                r.push('[');
+                for i in list {
+                    r.push_str(&i.to_string());
+                }
+                r.push(']');
+            },
+            RegexUnit::Items(list) => {
+                r.push('(');
+                for i in list {
+                    r.push_str(&i.to_string());
+                }
+                r.push(')');
+            },
+        }
+
+        r
+    }
+}
+
 impl ToString for RegexItem {
     fn to_string(&self) -> String {
         let mut r = String::new();
 
+        r.push_str(&self.unit.to_string());
 
-        assert_eq!(self.annotation, RegexAnnotation::StandAlone);
+        match self.annotation {
+            RegexAnnotation::AnyOccurs => r.push('*'),
+            RegexAnnotation::OneOrZero => r.push('?'),
+            RegexAnnotation::GreaterZero => r.push('+'),
+            _ => {},
+        }
 
         r
     }
@@ -152,5 +190,6 @@ mod test {
     fn test() {
         let r: RegexItem = "a[abd]+".into();
         println!("{:#?}", r);
+        println!("====> {}", r.to_string());
     }
 }
